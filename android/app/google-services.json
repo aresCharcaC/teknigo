@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "986469489948",
+    "project_id": "teknigo-6e905",
+    "storage_bucket": "teknigo-6e905.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:986469489948:android:2c0fc9745a0b5c7f5aeed9",
+        "android_client_info": {
+          "package_name": "com.example.teknigo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "986469489948-dpb1c7j7lvbdjnhpbt94vvh11hhelrqs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1jyzkQlMIPNmDXw5nEbOZeOmEx9-fg00"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "986469489948-dpb1c7j7lvbdjnhpbt94vvh11hhelrqs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
