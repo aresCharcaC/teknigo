@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -74,15 +75,21 @@ class AuthService {
     }
   }
 
-  // Inicio de sesión con Google
+  // Inicio de sesión con Google - VERSIÓN CORREGIDA
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      // Verificar si ya está iniciada sesión y cerrarla primero
+      await _googleSignIn.signOut();
+
       // Iniciar el flujo de autenticación de Google
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
         // El usuario canceló el inicio de sesión
-        return null;
+        throw FirebaseAuthException(
+          code: 'sign_in_canceled',
+          message: 'El inicio de sesión con Google fue cancelado.',
+        );
       }
 
       // Obtener detalles de autenticación de la solicitud
@@ -101,12 +108,119 @@ class AuthService {
       // Si es un nuevo usuario, guardar datos en Firestore
       if (userCredential.additionalUserInfo?.isNewUser ?? false) {
         await _firestore.collection('users').doc(userCredential.user!.uid).set({
-          'name': userCredential.user!.displayName,
-          'email': userCredential.user!.email,
+          'name': userCredential.user!.displayName ?? 'Usuario',
+          'email': userCredential.user!.email ?? '',
           'userType': 'regular',
           'createdAt': FieldValue.serverTimestamp(),
           'lastLogin': FieldValue.serverTimestamp(),
           'authProvider': 'google',
+        });
+      } else {
+        // Verificar si existe el documento en Firestore
+        final userDoc =
+            await _firestore
+                .collection('users')
+                .doc(userCredential.user!.uid)
+                .get();
+
+        if (userDoc.exists) {
+          // Actualizar fecha de último inicio de sesión
+          await _firestore
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .update({'lastLogin': FieldValue.serverTimestamp()});
+        } else {
+          // Crear documento si no existe
+          await _firestore
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+                'name': userCredential.user!.displayName ?? 'Usuario',
+                'email': userCredential.user!.email ?? '',
+                'userType': 'regular',
+                'createdAt': FieldValue.serverTimestamp(),
+                'lastLogin': FieldValue.serverTimestamp(),
+                'authProvider': 'google',
+              });
+        }
+      }
+
+      return userCredential;
+    } catch (e) {
+      print('Error detallado en inicio de sesión con Google: $e');
+      if (e is FirebaseAuthException) {
+        // Relanzar la excepción original
+        rethrow;
+      } else {
+        // Convertir otras excepciones a FirebaseAuthException para manejo unificado
+        throw FirebaseAuthException(
+          code: 'google_sign_in_failed',
+          message: 'Error al iniciar sesión con Google: ${e.toString()}',
+        );
+      }
+    }
+  }
+
+  // Inicio de sesión con Apple (solo disponible en iOS)
+  Future<UserCredential?> signInWithApple() async {
+    try {
+      // Verificar si el inicio de sesión con Apple está disponible en este dispositivo
+      final isAvailable = await SignInWithApple.isAvailable();
+
+      if (!isAvailable) {
+        throw FirebaseAuthException(
+          code: 'apple-sign-in-not-available',
+          message:
+              'El inicio de sesión con Apple no está disponible en este dispositivo',
+        );
+      }
+
+      // Comenzar el proceso de inicio de sesión con Apple
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      // Crear credencial para Firebase
+      final oauthCredential = OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      // Iniciar sesión en Firebase con esa credencial
+      final userCredential = await _auth.signInWithCredential(oauthCredential);
+
+      // Si es un nuevo usuario, guardar datos en Firestore
+      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+        // Apple puede ocultar el email después del primer inicio de sesión
+        // y fullName puede estar vacío, así que maneja esos casos
+        String? name = appleCredential.givenName;
+        if ((name == null || name.isEmpty) &&
+            appleCredential.familyName != null &&
+            appleCredential.familyName!.isNotEmpty) {
+          name = appleCredential.familyName;
+        }
+
+        // Si aún no tenemos nombre, usamos el displayName de Firebase o "Usuario de Apple"
+        if (name == null || name.isEmpty) {
+          name = userCredential.user?.displayName ?? 'Usuario de Apple';
+        }
+
+        // Extraer email (puede estar vacío en inicios de sesión posteriores)
+        final email =
+            appleCredential.email ??
+            userCredential.user?.email ??
+            'no-email@apple.user';
+
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+          'name': name,
+          'email': email,
+          'userType': 'regular',
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'authProvider': 'apple',
         });
       } else {
         // Actualizar fecha de último inicio de sesión
@@ -118,27 +232,21 @@ class AuthService {
 
       return userCredential;
     } catch (e) {
-      print('Error en inicio de sesión con Google: $e');
-      rethrow;
-    }
-  }
-
-  // Inicio de sesión con Apple (solo disponible en iOS)
-  Future<UserCredential?> signInWithApple() async {
-    try {
-      final appleProvider = AppleAuthProvider();
-
-      // En iOS, esto mostrará el diálogo nativo de Apple
-      // En Android/Web, podemos usar signInWithPopup
-      if (TargetPlatform.iOS == Theme.of(currentContext).platform) {
-        return await _auth.signInWithProvider(appleProvider);
+      print('Error detallado en inicio de sesión con Apple: $e');
+      if (e is SignInWithAppleException) {
+        throw FirebaseAuthException(
+          code: 'apple-sign-in-failed',
+          message: 'Error al iniciar sesión con Apple: ${e.toString()}',
+        );
+      } else if (e is FirebaseAuthException) {
+        rethrow;
       } else {
-        // Para web o pruebas (no funcionará en la mayoría de dispositivos Android)
-        return await _auth.signInWithPopup(appleProvider);
+        throw FirebaseAuthException(
+          code: 'apple-sign-in-unknown-error',
+          message:
+              'Error desconocido al iniciar sesión con Apple: ${e.toString()}',
+        );
       }
-    } catch (e) {
-      print('Error en inicio de sesión con Apple: $e');
-      rethrow;
     }
   }
 
@@ -152,16 +260,22 @@ class AuthService {
     }
   }
 
-  // Cerrar sesión
+  // Cerrar sesión - VERSIÓN CORREGIDA
   Future<void> signOut() async {
     try {
-      // Cerrar sesión en Google si estaba iniciada
-      await _googleSignIn.signOut();
-
-      // Cerrar sesión en Firebase
+      // Cerrar sesión en Firebase primero
       await _auth.signOut();
+
+      // Luego intentar cerrar sesión en Google
+      try {
+        await _googleSignIn.disconnect();
+        await _googleSignIn.signOut();
+      } catch (e) {
+        print('Error al cerrar sesión en Google (no crítico): $e');
+        // No relanzamos esta excepción ya que la sesión de Firebase ya está cerrada
+      }
     } catch (e) {
-      print('Error al cerrar sesión: $e');
+      print('Error crítico al cerrar sesión: $e');
       rethrow;
     }
   }
@@ -176,20 +290,40 @@ class AuthService {
 
       if (doc.exists) {
         return doc.data();
-      }
+      } else {
+        // Si no existe el documento pero el usuario está autenticado,
+        // crear un documento básico con la información disponible
+        final userData = {
+          'name': currentUser!.displayName ?? 'Usuario',
+          'email': currentUser!.email ?? '',
+          'userType': 'regular',
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'authProvider': _determineAuthProvider(currentUser!),
+        };
 
-      return null;
+        await _firestore
+            .collection('users')
+            .doc(currentUser!.uid)
+            .set(userData);
+        return userData;
+      }
     } catch (e) {
       print('Error al obtener datos del usuario: $e');
       return null;
     }
   }
 
-  // Variable para acceder al BuildContext
-  static BuildContext get currentContext {
-    BuildContext? context;
-    // Esta es una forma de obtener context sin pasarlo como argumento
-    // pero es mejor pasar context como argumento cuando sea posible
-    return context ?? (throw Exception('Context no disponible'));
+  // Determinar el proveedor de autenticación basado en la información del usuario
+  String _determineAuthProvider(User user) {
+    if (user.providerData.isEmpty) return 'unknown';
+
+    final providerId = user.providerData[0].providerId;
+
+    if (providerId.contains('google')) return 'google';
+    if (providerId.contains('apple')) return 'apple';
+    if (providerId.contains('password')) return 'email';
+
+    return 'unknown';
   }
 }

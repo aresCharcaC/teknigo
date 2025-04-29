@@ -4,21 +4,20 @@ import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/social_login_button.dart';
 import '../../core/utils/validators.dart';
+import 'register_screen.dart';
+import 'reset_password_screen.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
 
   @override
-  _RegisterScreenState createState() => _RegisterScreenState();
+  _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _authService = AuthService();
 
   bool _isLoading = false;
@@ -28,16 +27,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  // Manejar registro con email y contraseña
-  Future<void> _handleEmailRegister() async {
+  // Manejar inicio de sesión con email y contraseña
+  Future<void> _handleEmailLogin() async {
     // Validar el formulario
     if (!_formKey.currentState!.validate()) {
       return;
@@ -49,34 +45,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await _authService.registerWithEmail(
+      await _authService.loginWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        name: _nameController.text.trim(),
       );
-
-      // El registro fue exitoso, volver a la pantalla anterior
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Registro exitoso! Inicia sesión para continuar.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
-      }
+      // No necesitamos navegar manualmente, el listener de autenticación lo hará
     } catch (e) {
       setState(() {
         if (e is FirebaseAuthException) {
           switch (e.code) {
-            case 'email-already-in-use':
-              _errorMessage = 'Este correo ya está registrado';
+            case 'user-not-found':
+              _errorMessage = 'No existe cuenta con este correo';
               break;
-            case 'weak-password':
-              _errorMessage = 'La contraseña es demasiado débil';
+            case 'wrong-password':
+              _errorMessage = 'Contraseña incorrecta';
               break;
-            case 'invalid-email':
-              _errorMessage = 'El correo electrónico no es válido';
+            case 'user-disabled':
+              _errorMessage = 'Esta cuenta ha sido deshabilitada';
+              break;
+            case 'too-many-requests':
+              _errorMessage = 'Demasiados intentos fallidos. Intenta más tarde';
               break;
             default:
               _errorMessage = 'Error: ${e.message}';
@@ -94,8 +82,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // Manejar registro con Google
-  Future<void> _handleGoogleRegister() async {
+  // Manejar inicio de sesión con Google
+  Future<void> _handleGoogleLogin() async {
     setState(() {
       _isGoogleLoading = true;
       _errorMessage = '';
@@ -106,7 +94,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // No necesitamos navegar manualmente, el listener de autenticación lo hará
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error al registrarse con Google';
+        _errorMessage = 'Error al iniciar sesión con Google';
       });
     } finally {
       if (mounted) {
@@ -117,8 +105,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // Manejar registro con Apple
-  Future<void> _handleAppleRegister() async {
+  // Manejar inicio de sesión con Apple
+  Future<void> _handleAppleLogin() async {
     setState(() {
       _isAppleLoading = true;
       _errorMessage = '';
@@ -129,7 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // No necesitamos navegar manualmente, el listener de autenticación lo hará
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error al registrarse con Apple';
+        _errorMessage = 'Error al iniciar sesión con Apple';
       });
     } finally {
       if (mounted) {
@@ -143,43 +131,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear Cuenta'), centerTitle: true),
+      appBar: AppBar(title: const Text('TekniGo'), centerTitle: true),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 16),
+              // Logo o imagen de la app
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20.0),
+                child: Image.asset(
+                  'assets/images/logo.png', // Asegúrate de tener esta imagen
+                  height: 120,
+                  errorBuilder:
+                      (context, error, stackTrace) => const Icon(
+                        Icons.handyman,
+                        size: 120,
+                        color: Colors.blue,
+                      ),
+                ),
+              ),
 
               const Text(
-                'Únete a TekniGo',
+                'Iniciar Sesión',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 8),
 
               const Text(
-                'Crea tu cuenta para encontrar técnicos',
+                'Conecta con técnicos cerca de ti',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 30),
 
-              // Formulario de registro
+              // Formulario de inicio de sesión
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    CustomTextField(
-                      controller: _nameController,
-                      label: 'Nombre completo',
-                      prefixIcon: Icons.person,
-                      validator: Validators.validateName,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 16),
                     CustomTextField(
                       controller: _emailController,
                       label: 'Correo electrónico',
@@ -191,41 +184,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
                     CustomTextField(
-                      controller: _phoneController,
-                      label: 'Teléfono (opcional)',
-                      prefixIcon: Icons.phone,
-                      keyboardType: TextInputType.phone,
-                      validator: Validators.validatePhone,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 16),
-                    CustomTextField(
                       controller: _passwordController,
                       label: 'Contraseña',
                       prefixIcon: Icons.lock,
                       isPassword: true,
                       validator: Validators.validatePassword,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 16),
-                    CustomTextField(
-                      controller: _confirmPasswordController,
-                      label: 'Confirmar contraseña',
-                      prefixIcon: Icons.lock_outline,
-                      isPassword: true,
-                      validator:
-                          (value) => Validators.validateConfirmPassword(
-                            value,
-                            _passwordController.text,
-                          ),
                       textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _handleEmailRegister(),
+                      onSubmitted: (_) => _handleEmailLogin(),
+                    ),
+
+                    // Enlace para recuperar contraseña
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ResetPasswordScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text('¿Olvidaste tu contraseña?'),
+                      ),
                     ),
 
                     // Mostrar mensaje de error si existe
                     if (_errorMessage.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 16.0),
+                        padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
                           _errorMessage,
                           style: TextStyle(
@@ -238,11 +225,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Botón de registro
+                    // Botón de inicio de sesión
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleEmailRegister,
+                        onPressed: _isLoading ? null : _handleEmailLogin,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -262,7 +249,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                 )
                                 : const Text(
-                                  'REGISTRARSE',
+                                  'INICIAR SESIÓN',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -283,7 +270,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      'O regístrate con',
+                      'O',
                       style: TextStyle(
                         color: Colors.grey,
                         fontWeight: FontWeight.w500,
@@ -296,11 +283,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 16),
 
-              // Botones de registro con redes sociales
+              // Botones de inicio de sesión con redes sociales
               SocialLoginButton(
                 type: SocialLoginType.google,
                 isLoading: _isGoogleLoading,
-                onPressed: _handleGoogleRegister,
+                onPressed: _handleGoogleLogin,
               ),
 
               // Mostrar botón de Apple solo en iOS
@@ -309,17 +296,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 SocialLoginButton(
                   type: SocialLoginType.apple,
                   isLoading: _isAppleLoading,
-                  onPressed: _handleAppleRegister,
+                  onPressed: _handleAppleLogin,
                 ),
               ],
 
               const SizedBox(height: 24),
 
-              // Texto de términos y condiciones
-              const Text(
-                'Al registrarte, aceptas nuestros Términos de servicio y Política de privacidad',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center,
+              // Enlace a registro
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('¿No tienes una cuenta?'),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RegisterScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text('Regístrate'),
+                  ),
+                ],
               ),
             ],
           ),
