@@ -1,34 +1,69 @@
-// app.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'auth/screens/login_screen.dart';
+import 'auth/services/auth_service.dart';
+import 'presentation/screens/home_screen.dart';
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key}); // Constructor
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Firebase Test App',
-      debugShowCheckedModeBanner: false, // Quitar la cinta de debug
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const HomePage(), // Llama a HomePage
+      title: 'TekniGo',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
+        fontFamily: 'Roboto',
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+      home: const AuthWrapper(),
     );
   }
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key}); // Constructor
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Firebase conectado')),
-      body: const Center(
-        child: Text(
-          '¡Hola Mundo! 🚀\nFirebase está inicializado.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 24),
-        ),
-      ),
+    return StreamBuilder<User?>(
+      stream: AuthService().authStateChanges,
+      builder: (context, snapshot) {
+        // Si hay un error en el stream
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Error: ${snapshot.error}')),
+          );
+        }
+
+        // Mientras verifica el estado de autenticación
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Si el usuario está autenticado
+        if (snapshot.hasData) {
+          return const HomeScreen();
+        }
+
+        // Si el usuario no está autenticado
+        return const LoginScreen();
+      },
     );
   }
 }
