@@ -2,22 +2,46 @@ import 'package:flutter/material.dart';
 import '../../auth/services/auth_service.dart';
 
 class CustomDrawer extends StatelessWidget {
-  const CustomDrawer({Key? key}) : super(key: key);
+  final Function()? onProfileTap;
+  final Function(bool)? onTechnicianModeToggle;
+  final bool isTechnicianMode;
+
+  const CustomDrawer({
+    Key? key,
+    this.onProfileTap,
+    this.onTechnicianModeToggle,
+    this.isTechnicianMode = false,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final authService = AuthService();
     final user = authService.currentUser;
 
+    // Extraer nombre y email seguros contra nulos
+    final String userName = user?.displayName ?? 'Usuario';
+    final String userEmail = user?.email ?? '';
+
+    // Extraer foto de perfil si existe
+    final String? photoURL = user?.photoURL;
+
+    // Obtener primera letra del nombre para avatar por defecto
+    String firstLetter = 'U';
+    if (userName.isNotEmpty) {
+      firstLetter = userName[0].toUpperCase();
+    }
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // Encabezado del drawer
+          // Encabezado del drawer optimizado para nombres largos
           _buildDrawerHeader(
             context,
-            user?.displayName ?? 'Usuario',
-            user?.email ?? '',
+            userName,
+            userEmail,
+            photoURL,
+            firstLetter,
           ),
 
           // Elementos del menú
@@ -26,18 +50,6 @@ class CustomDrawer extends StatelessWidget {
             title: const Text('Inicio'),
             onTap: () {
               Navigator.pop(context); // Cerrar el drawer
-            },
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.search),
-            title: const Text('Buscar Técnicos'),
-            onTap: () {
-              Navigator.pop(context); // Cerrar el drawer
-              // Navegación a la pantalla de búsqueda
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Navegando a búsqueda')),
-              );
             },
           ),
 
@@ -63,12 +75,16 @@ class CustomDrawer extends StatelessWidget {
             title: const Text('Mi Perfil'),
             onTap: () {
               Navigator.pop(context); // Cerrar el drawer
-              // Navegación al perfil
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Próximamente: Perfil de usuario'),
-                ),
-              );
+              // Navegar al perfil
+              if (onProfileTap != null) {
+                onProfileTap!();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Próximamente: Perfil de usuario'),
+                  ),
+                );
+              }
             },
           ),
 
@@ -81,6 +97,40 @@ class CustomDrawer extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Próximamente: Configuración')),
               );
+            },
+          ),
+
+          // Separador
+          const Divider(),
+
+          // Botón de Modo Técnico (nuevo)
+          SwitchListTile(
+            secondary: const Icon(Icons.handyman),
+            title: const Text('Modo Técnico'),
+            subtitle: Text(
+              isTechnicianMode
+                  ? 'Activo: Estás ofreciendo servicios'
+                  : 'Inactivo: Estás como cliente',
+            ),
+            value: isTechnicianMode,
+            activeColor: Colors.green,
+            onChanged: (bool value) {
+              Navigator.pop(context); // Cerrar el drawer
+
+              if (onTechnicianModeToggle != null) {
+                onTechnicianModeToggle!(value);
+              } else {
+                // Fallback si no se proporciona el callback
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      value
+                          ? 'Cambiando a modo técnico...'
+                          : 'Cambiando a modo cliente...',
+                    ),
+                  ),
+                );
+              }
             },
           ),
 
@@ -175,43 +225,76 @@ class CustomDrawer extends StatelessWidget {
     );
   }
 
-  // Construir el encabezado del drawer
-  Widget _buildDrawerHeader(BuildContext context, String name, String email) {
+  // Construir el encabezado del drawer (optimizado contra desbordamientos)
+  Widget _buildDrawerHeader(
+    BuildContext context,
+    String name,
+    String email,
+    String? photoURL,
+    String firstLetter,
+  ) {
     return DrawerHeader(
       decoration: BoxDecoration(color: Theme.of(context).primaryColor),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar del usuario
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.white,
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : 'U',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).primaryColor,
+          // Avatar del usuario (con foto o letra)
+          photoURL != null && photoURL.isNotEmpty
+              ? Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  image: DecorationImage(
+                    image: NetworkImage(photoURL),
+                    fit: BoxFit.cover,
+                    onError: (exception, stackTrace) {
+                      // Si hay error al cargar la imagen, mostrará la letra
+                      print('Error al cargar la imagen de perfil: $exception');
+                    },
+                  ),
+                ),
+              )
+              : CircleAvatar(
+                radius: 30,
+                backgroundColor: Colors.white,
+                child: Text(
+                  firstLetter,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
               ),
-            ),
-          ),
 
           const SizedBox(height: 10),
 
-          // Nombre del usuario
-          Text(
-            name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          // Nombre del usuario con protección contra desbordamiento
+          Container(
+            width: double.infinity, // Usar todo el ancho disponible
+            child: Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1, // Limitar a una línea
+              overflow: TextOverflow.ellipsis, // Usar ... si es muy largo
             ),
           ),
 
-          // Email del usuario
-          Text(
-            email,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          // Email del usuario con protección contra desbordamiento
+          Container(
+            width: double.infinity, // Usar todo el ancho disponible
+            child: Text(
+              email,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              maxLines: 1, // Limitar a una línea
+              overflow: TextOverflow.ellipsis, // Usar ... si es muy largo
+            ),
           ),
         ],
       ),

@@ -4,6 +4,8 @@ import '../../auth/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_screen.dart';
 import 'search_screen.dart';
+import 'technician_mode_screen.dart';
+import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -15,15 +17,21 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final AuthService _authService = AuthService();
   int _currentIndex = 0; // Para controlar el BottomNavigationBar
+  bool _isTechnicianMode = false; // Estado del modo técnico
 
   // Lista de pantallas que se mostrarán según el índice seleccionado
-  final List<Widget> _screens = [
+  late final List<Widget> _clientScreens = [
     const HomeScreen(), // Pantalla de inicio con categorías
     const SearchScreen(), // Pantalla de búsqueda
   ];
 
   @override
   Widget build(BuildContext context) {
+    // Si está en modo técnico, mostrar la pantalla de técnico
+    if (_isTechnicianMode) {
+      return TechnicianModeScreen(onSwitchMode: _toggleTechnicianMode);
+    }
+
     return Scaffold(
       // AppBar común para todas las pantallas
       appBar: AppBar(
@@ -43,10 +51,14 @@ class _MainScreenState extends State<MainScreen> {
       ),
 
       // Drawer (menú lateral)
-      drawer: const CustomDrawer(),
+      drawer: CustomDrawer(
+        onProfileTap: _navigateToProfile,
+        onTechnicianModeToggle: _toggleTechnicianMode,
+        isTechnicianMode: _isTechnicianMode,
+      ),
 
       // Contenido principal - cambia según la pestaña seleccionada
-      body: _screens[_currentIndex],
+      body: _clientScreens[_currentIndex],
 
       // BottomNavigationBar simplificado con solo Home y Búsqueda
       bottomNavigationBar: BottomNavigationBar(
@@ -64,5 +76,20 @@ class _MainScreenState extends State<MainScreen> {
         },
       ),
     );
+  }
+
+  // Navegar al perfil del usuario
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+    );
+  }
+
+  // Alternar entre modo cliente y técnico
+  void _toggleTechnicianMode(bool value) {
+    setState(() {
+      _isTechnicianMode = value;
+    });
   }
 }
