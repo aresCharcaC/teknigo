@@ -36,9 +36,7 @@ class CustomDrawer extends StatelessWidget {
               Navigator.pop(context); // Cerrar el drawer
               // Navegación a la pantalla de búsqueda
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Próximamente: Búsqueda de técnicos'),
-                ),
+                const SnackBar(content: Text('Navegando a búsqueda')),
               );
             },
           ),

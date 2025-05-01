@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth/screens/login_screen.dart';
 import 'auth/services/auth_service.dart';
-import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/main_screen.dart'; // CAMBIO: Importamos la nueva pantalla principal
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -58,7 +58,7 @@ class AuthWrapper extends StatelessWidget {
 
         // Si el usuario está autenticado
         if (snapshot.hasData) {
-          return const HomeScreen();
+          return const MainScreen(); // CAMBIO: Ahora redirigimos a MainScreen en lugar de HomeScreen
         }
 
         // Si el usuario no está autenticado
