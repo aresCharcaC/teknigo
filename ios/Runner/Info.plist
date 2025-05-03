@@ -9,6 +9,12 @@
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 
+	<key>NSLocationWhenInUseUsageDescription</key>
+    <string>Esta app necesita acceso a tu ubicación para mostrar tu posición en el mapa y calcular el radio de cobertura.</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Esta app necesita acceso a tu ubicación para mostrar tu posición en el mapa y calcular el radio de cobertura.</string>
+    
+
 
 	<key>GMSAPIKey</key>
 	<string>$(MAPS_API_KEY)</string>
