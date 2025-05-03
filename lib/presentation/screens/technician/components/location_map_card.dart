@@ -1,6 +1,7 @@
 // lib/presentation/screens/technician/components/location_map_card.dart
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../../../core/services/location_service.dart';
 
 class LocationMapCard extends StatelessWidget {
   final LatLng? location;
@@ -8,20 +9,22 @@ class LocationMapCard extends StatelessWidget {
   final double coverageRadius;
   final bool isEditing;
   final Function() onSelectLocation;
+  final LocationService locationService;
 
   const LocationMapCard({
     Key? key,
-    this.location,
-    this.address,
+    required this.location,
+    required this.address,
     required this.coverageRadius,
     required this.isEditing,
     required this.onSelectLocation,
+    required this.locationService,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -45,8 +48,8 @@ class LocationMapCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Mapa con ubicación
-            _buildLocationMap(),
+            // Mapa
+            _buildLocationMap(context),
 
             const SizedBox(height: 12),
 
@@ -59,8 +62,6 @@ class LocationMapCard extends StatelessWidget {
                   child: Text(
                     address ?? 'Dirección no especificada',
                     style: TextStyle(color: Colors.grey.shade800),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -98,7 +99,7 @@ class LocationMapCard extends StatelessWidget {
     );
   }
 
-  Widget _buildLocationMap() {
+  Widget _buildLocationMap(BuildContext context) {
     if (location == null) {
       return Container(
         height: 150,
@@ -121,23 +122,44 @@ class LocationMapCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: GoogleMap(
-          initialCameraPosition: CameraPosition(target: location!, zoom: 14),
+          initialCameraPosition: CameraPosition(target: location!, zoom: 15),
           markers: {
-            Marker(markerId: const MarkerId('myLocation'), position: location!),
+            Marker(
+              markerId: const MarkerId('myLocation'),
+              position: location!,
+              draggable: isEditing,
+              onDragEnd:
+                  isEditing
+                      ? (newPosition) async {
+                        // Este callback necesitará ser manejado en el widget padre
+                        // Solo se proporciona como placeholder
+                      }
+                      : null,
+            ),
           },
           circles: {
             Circle(
               circleId: const CircleId('coverageArea'),
               center: location!,
               radius: coverageRadius * 1000, // Convertir a metros
-              fillColor: Colors.blue,
-              strokeColor: Colors.blue,
+              fillColor: Colors.blue.withOpacity(0.2),
+              strokeColor: Colors.blue.withOpacity(0.5),
               strokeWidth: 2,
             ),
           },
-          zoomControlsEnabled: false,
-          mapToolbarEnabled: false,
-          myLocationButtonEnabled: false,
+          zoomControlsEnabled: true,
+          mapToolbarEnabled: true,
+          myLocationEnabled: true,
+          myLocationButtonEnabled: true,
+          mapType: MapType.normal,
+          onMapCreated: (GoogleMapController controller) {
+            // Puedes guardar el controlador aquí si necesitas
+            Future.delayed(Duration(milliseconds: 500), () {
+              controller.animateCamera(
+                CameraUpdate.newLatLngZoom(location!, 15),
+              );
+            });
+          },
         ),
       ),
     );
