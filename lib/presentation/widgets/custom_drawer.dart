@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../auth/services/auth_service.dart';
+import 'package:provider/provider.dart';
+import '../view_models/auth_view_model.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_constants.dart';
 
+/// Menú lateral personalizado para la aplicación
 class CustomDrawer extends StatelessWidget {
   final Function()? onProfileTap;
   final Function(bool)? onTechnicianModeToggle;
@@ -15,8 +19,8 @@ class CustomDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
-    final user = authService.currentUser;
+    final authViewModel = Provider.of<AuthViewModel>(context);
+    final user = authViewModel.currentUser;
 
     // Extraer nombre y email seguros contra nulos
     final String userName = user?.displayName ?? 'Usuario';
@@ -62,6 +66,7 @@ class CustomDrawer extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Próximamente: Historial de servicios'),
+                  behavior: SnackBarBehavior.floating,
                 ),
               );
             },
@@ -82,6 +87,7 @@ class CustomDrawer extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Próximamente: Perfil de usuario'),
+                    behavior: SnackBarBehavior.floating,
                   ),
                 );
               }
@@ -95,7 +101,10 @@ class CustomDrawer extends StatelessWidget {
               Navigator.pop(context); // Cerrar el drawer
               // Navegación a configuración
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Próximamente: Configuración')),
+                const SnackBar(
+                  content: Text('Próximamente: Configuración'),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
           ),
@@ -103,7 +112,7 @@ class CustomDrawer extends StatelessWidget {
           // Separador
           const Divider(),
 
-          // Botón de Modo Técnico (nuevo)
+          // Botón de Modo Técnico
           SwitchListTile(
             secondary: const Icon(Icons.handyman),
             title: const Text('Modo Técnico'),
@@ -113,7 +122,7 @@ class CustomDrawer extends StatelessWidget {
                   : 'Inactivo: Estás como cliente',
             ),
             value: isTechnicianMode,
-            activeColor: Colors.green,
+            activeColor: AppColors.success,
             onChanged: (bool value) {
               Navigator.pop(context); // Cerrar el drawer
 
@@ -128,6 +137,7 @@ class CustomDrawer extends StatelessWidget {
                           ? 'Cambiando a modo técnico...'
                           : 'Cambiando a modo cliente...',
                     ),
+                    behavior: SnackBarBehavior.floating,
                   ),
                 );
               }
@@ -144,7 +154,10 @@ class CustomDrawer extends StatelessWidget {
               Navigator.pop(context); // Cerrar el drawer
               // Navegación a ayuda
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Próximamente: Ayuda y soporte')),
+                const SnackBar(
+                  content: Text('Próximamente: Ayuda y soporte'),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
           ),
@@ -183,10 +196,10 @@ class CustomDrawer extends StatelessWidget {
           ),
 
           ListTile(
-            leading: const Icon(Icons.exit_to_app, color: Colors.red),
+            leading: const Icon(Icons.exit_to_app, color: AppColors.error),
             title: const Text(
               'Cerrar Sesión',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppColors.error),
             ),
             onTap: () async {
               Navigator.pop(context); // Cerrar el drawer
@@ -215,7 +228,7 @@ class CustomDrawer extends StatelessWidget {
 
               // Si el usuario confirmó, cerrar sesión
               if (confirmed == true) {
-                await authService.signOut();
+                await authViewModel.signOut();
                 // No es necesario navegar, el StreamBuilder lo hará automáticamente
               }
             },

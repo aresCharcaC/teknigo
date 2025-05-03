@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/custom_drawer.dart';
-import '../../auth/services/auth_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'home_screen.dart';
-import 'search_screen.dart';
-import 'technician_mode_screen.dart';
-import 'profile_screen.dart';
+import '../view_models/auth_view_model.dart';
+import '../view_models/category_view_model.dart';
+import '../view_models/technician_view_model.dart';
+import '../../core/constants/app_constants.dart';
+import 'home/home_screen.dart';
+import 'search/search_screen.dart';
+import 'technician/technician_mode_screen.dart';
+import 'profile/profile_screen.dart';
 
+/// Pantalla principal que contiene el BottomNavigationBar y el menú lateral
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
 
@@ -15,7 +19,6 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final AuthService _authService = AuthService();
   int _currentIndex = 0; // Para controlar el BottomNavigationBar
   bool _isTechnicianMode = false; // Estado del modo técnico
 
@@ -32,48 +35,57 @@ class _MainScreenState extends State<MainScreen> {
       return TechnicianModeScreen(onSwitchMode: _toggleTechnicianMode);
     }
 
-    return Scaffold(
-      // AppBar común para todas las pantallas
-      appBar: AppBar(
-        title: const Text('TekniGo'),
-        actions: [
-          // Icono de notificaciones
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Próximamente: Notificaciones')),
-              );
-            },
-            tooltip: 'Notificaciones',
-          ),
-        ],
-      ),
+    return MultiProvider(
+      providers: [ChangeNotifierProvider(create: (_) => CategoryViewModel())],
+      child: Scaffold(
+        // AppBar común para todas las pantallas
+        appBar: AppBar(
+          title: const Text(AppConstants.appName),
+          actions: [
+            // Icono de notificaciones
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Próximamente: Notificaciones'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              tooltip: 'Notificaciones',
+            ),
+          ],
+        ),
 
-      // Drawer (menú lateral)
-      drawer: CustomDrawer(
-        onProfileTap: _navigateToProfile,
-        onTechnicianModeToggle: _toggleTechnicianMode,
-        isTechnicianMode: _isTechnicianMode,
-      ),
+        // Drawer (menú lateral)
+        drawer: CustomDrawer(
+          onProfileTap: _navigateToProfile,
+          onTechnicianModeToggle: _toggleTechnicianMode,
+          isTechnicianMode: _isTechnicianMode,
+        ),
 
-      // Contenido principal - cambia según la pestaña seleccionada
-      body: _clientScreens[_currentIndex],
+        // Contenido principal - cambia según la pestaña seleccionada
+        body: _clientScreens[_currentIndex],
 
-      // BottomNavigationBar simplificado con solo Home y Búsqueda
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Búsqueda'),
-        ],
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        // BottomNavigationBar simplificado con solo Home y Búsqueda
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          selectedItemColor: Theme.of(context).primaryColor,
+          unselectedItemColor: Colors.grey,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.search),
+              label: 'Búsqueda',
+            ),
+          ],
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+        ),
       ),
     );
   }

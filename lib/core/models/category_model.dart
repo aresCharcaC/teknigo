@@ -1,13 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+/// Modelo que representa una categoría de servicios
 class CategoryModel {
   final String id;
   final String name;
   final String? description;
   final String? iconUrl;
-  final String
-  iconName; // Nombre del icono de Flutter (para usar cuando no hay URL)
+  final String iconName; // Nombre del icono de Flutter
   final Color iconColor; // Color del icono
   final List<String> tags; // Tags relacionados para búsqueda
   final bool isActive;
@@ -27,22 +27,17 @@ class CategoryModel {
     required this.updatedAt,
   });
 
-  // Convertir de Firestore a objeto
+  // Constructor desde un mapa (para convertir desde Firestore)
   factory CategoryModel.fromFirestore(DocumentSnapshot doc) {
     try {
       final data = doc.data() as Map<String, dynamic>;
 
-      print('Convertir documento: ${doc.id}');
-      print('Datos: $data');
-
       // Verificar iconColor
       final String colorString = data['iconColor'] ?? '#2196F3';
-      print('String de color: $colorString');
 
       // Convertir tags
       final List<dynamic> rawTags = data['tags'] ?? [];
       final List<String> tags = rawTags.map((tag) => tag.toString()).toList();
-      print('Tags convertidos: $tags');
 
       // Convertir fechas
       final Timestamp? createdAtTimestamp = data['createdAt'] as Timestamp?;
@@ -50,8 +45,6 @@ class CategoryModel {
 
       final DateTime createdAt = createdAtTimestamp?.toDate() ?? DateTime.now();
       final DateTime updatedAt = updatedAtTimestamp?.toDate() ?? DateTime.now();
-
-      print('Fechas convertidas: $createdAt, $updatedAt');
 
       return CategoryModel(
         id: doc.id,
@@ -71,30 +64,7 @@ class CategoryModel {
     }
   }
 
-  // Convertir a mapa para guardar en Firestore
-  Map<String, dynamic> toFirestore() {
-    try {
-      final hexColor = _colorToHex(iconColor);
-      print('Convirtiendo a Firestore. Color hex: $hexColor');
-
-      return {
-        'name': name,
-        'description': description,
-        'iconUrl': iconUrl,
-        'iconName': iconName,
-        'iconColor': hexColor,
-        'tags': tags,
-        'isActive': isActive,
-        'createdAt': Timestamp.fromDate(createdAt),
-        'updatedAt': Timestamp.fromDate(updatedAt),
-      };
-    } catch (e) {
-      print('Error en toFirestore: $e');
-      rethrow;
-    }
-  }
-
-  // Funciones auxiliares para convertir entre Color y Hex - MEJORADO
+  // Métodos para convertir entre Color y Hex
   static Color _colorFromHex(String hexString) {
     try {
       // Asegurarse de que el string comience con #
@@ -127,7 +97,7 @@ class CategoryModel {
     }
   }
 
-  static String _colorToHex(Color color) {
+  static String colorToHex(Color color) {
     try {
       // Obtener valor hexadecimal sin alpha y agregar #
       final hex = '#${color.value.toRadixString(16).substring(2, 8)}';
@@ -135,6 +105,90 @@ class CategoryModel {
     } catch (e) {
       print('Error al convertir de color a hex: $e');
       return '#2196F3'; // Color azul por defecto
+    }
+  }
+
+  // Método para obtener un icono de Flutter basado en el nombre
+  IconData getIcon() {
+    switch (iconName) {
+      case 'electrical_services':
+        return Icons.electrical_services;
+      case 'lightbulb':
+        return Icons.lightbulb;
+      case 'plumbing':
+        return Icons.plumbing;
+      case 'thermostat':
+        return Icons.thermostat;
+      case 'computer':
+        return Icons.computer;
+      case 'smartphone':
+        return Icons.smartphone;
+      case 'wifi':
+        return Icons.wifi;
+      case 'ac_unit':
+        return Icons.ac_unit;
+      case 'air':
+        return Icons.air;
+      case 'key':
+        return Icons.key;
+      case 'security':
+        return Icons.security;
+      case 'carpenter':
+        return Icons.carpenter;
+      case 'chair':
+        return Icons.chair;
+      case 'build':
+        return Icons.build;
+      case 'construction':
+        return Icons.construction;
+      case 'format_paint':
+        return Icons.format_paint;
+      case 'grass':
+        return Icons.grass;
+      case 'park':
+        return Icons.park;
+      case 'cleaning_services':
+        return Icons.cleaning_services;
+      case 'clean_hands':
+        return Icons.clean_hands;
+      case 'car_repair':
+        return Icons.car_repair;
+      case 'tire_repair':
+        return Icons.tire_repair;
+      case 'memory':
+        return Icons.memory;
+      case 'microwave':
+        return Icons.microwave;
+      case 'local_shipping':
+        return Icons.local_shipping;
+      case 'home':
+        return Icons.home;
+      case 'pool':
+        return Icons.pool;
+      case 'checkroom':
+        return Icons.checkroom;
+      case 'window':
+        return Icons.window;
+      case 'roofing':
+        return Icons.roofing;
+      case 'pest_control':
+        return Icons.pest_control;
+      case 'solar_power':
+        return Icons.solar_power;
+      case 'gas_meter':
+        return Icons.gas_meter;
+      case 'weekend':
+        return Icons.weekend;
+      case 'elderly':
+        return Icons.elderly;
+      case 'spa':
+        return Icons.spa;
+      case 'celebration':
+        return Icons.celebration;
+      case 'more_horiz':
+        return Icons.more_horiz;
+      default:
+        return Icons.category; // Icono por defecto
     }
   }
 }
