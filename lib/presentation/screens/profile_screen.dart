@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../auth/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -95,23 +96,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // Guardar cambios del perfil
+  // Guardar cambios del perfil
   Future<void> _saveProfile() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // En una implementación real, guardarías estos datos en Firestore
-      // Por ahora, solo actualizamos el estado local
+      // Crear mapa con datos actualizados
+      final updatedData = {
+        'name': _nameController.text,
+        'phone': _phoneController.text,
+        'city': _cityController.text,
+        'country': _countryController.text,
+        'postalCode': _postalCodeController.text,
+      };
+
+      // Actualizar perfil usando el servicio
+      await _authService.updateUserProfile(updatedData);
+
       setState(() {
-        _userData = {
-          ..._userData,
-          'name': _nameController.text,
-          'phone': _phoneController.text,
-          'city': _cityController.text,
-          'country': _countryController.text,
-          'postalCode': _postalCodeController.text,
-        };
+        _userData = {..._userData, ...updatedData};
         _isEditing = false;
         _isLoading = false;
       });

@@ -8,6 +8,20 @@
 	<string>Teknigo</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+
+
+	<key>GMSAPIKey</key>
+	<string>$(MAPS_API_KEY)</string>
+
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Esta aplicación necesita acceso a tu ubicación para mostrar técnicos cercanos.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Esta aplicación necesita acceso a tu ubicación para mostrar técnicos cercanos.</string>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
+
+
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>

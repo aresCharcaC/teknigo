@@ -161,6 +161,53 @@ class AuthService {
     }
   }
 
+  // En auth_service.dart, añadir método para actualizar perfil:
+  Future<void> updateUserProfile(Map<String, dynamic> userData) async {
+    try {
+      if (currentUser == null) return;
+
+      // Actualizar en Firestore
+      await _firestore.collection('users').doc(currentUser!.uid).update({
+        ...userData,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Si incluye nombre, actualizar también en Firebase Auth
+      if (userData.containsKey('name')) {
+        await currentUser!.updateDisplayName(userData['name']);
+      }
+    } catch (e) {
+      print('Error al actualizar perfil: $e');
+      rethrow;
+    }
+  }
+
+  // Y el método para cambiar contraseña:
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    try {
+      final user = currentUser;
+      if (user == null || user.email == null) {
+        throw Exception('No hay usuario autenticado o email no disponible');
+      }
+
+      // Reautenticar
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+
+      // Cambiar contraseña
+      await user.updatePassword(newPassword);
+    } catch (e) {
+      print('Error al cambiar contraseña: $e');
+      rethrow;
+    }
+  }
+
   // Inicio de sesión con Apple (solo disponible en iOS)
   Future<UserCredential?> signInWithApple() async {
     try {
