@@ -21,79 +21,111 @@ class TechnicianModeScreen extends StatefulWidget {
   _TechnicianModeScreenState createState() => _TechnicianModeScreenState();
 }
 
-class _TechnicianModeScreenState extends State<TechnicianModeScreen> {
-  int _currentIndex = 0; // Para controlar el BottomNavigationBar
+class _TechnicianModeScreenState extends State<TechnicianModeScreen>
+    with SingleTickerProviderStateMixin {
+  int _currentIndex = 0;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => TechnicianViewModel(),
-      child: Consumer<TechnicianViewModel>(
-        builder: (context, technicianViewModel, _) {
-          // Lista de pantallas del técnico
-          final List<Widget> _technicianScreens = [
-            const TechnicianProfileScreen(),
-            const TechnicianChatsScreen(),
-            const TechnicianRequestsScreen(),
-          ];
+    // List of technician screens
+    final List<Widget> _technicianScreens = [
+      const TechnicianProfileScreen(),
+      const TechnicianChatsScreen(),
+      const TechnicianRequestsScreen(),
+    ];
 
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Modo Técnico'),
-              actions: [
-                // Switch para regresar al modo cliente
-                Switch(
-                  value: true, // Siempre activo en esta pantalla
-                  activeColor: Colors.white,
-                  activeTrackColor: AppColors.secondary.withOpacity(0.5),
-                  onChanged: (value) {
-                    if (!value) {
-                      // Regresar a modo cliente
+    return FadeTransition(
+      opacity: _animation,
+      child: ChangeNotifierProvider(
+        create: (_) => TechnicianViewModel(),
+        child: Consumer<TechnicianViewModel>(
+          builder: (context, technicianViewModel, _) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Modo Técnico'),
+                actions: [
+                  // Switch to return to client mode
+                  Switch(
+                    value: true,
+                    activeColor: Colors.white,
+                    activeTrackColor: AppColors.secondary.withOpacity(0.5),
+                    onChanged: (value) {
+                      if (!value) {
+                        _animationController.reverse().then((_) {
+                          if (widget.onSwitchMode != null) {
+                            widget.onSwitchMode!(false);
+                          }
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              drawer: CustomDrawer(
+                onTechnicianModeToggle: (value) {
+                  if (!value) {
+                    _animationController.reverse().then((_) {
                       if (widget.onSwitchMode != null) {
                         widget.onSwitchMode!(false);
                       }
-                    }
-                  },
-                ),
-              ],
-            ),
-
-            // Drawer personalizado para técnico
-            drawer: CustomDrawer(
-              onTechnicianModeToggle: widget.onSwitchMode,
-              isTechnicianMode: true,
-            ),
-
-            // El contenido principal cambia según la pestaña seleccionada
-            body:
-                technicianViewModel.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _technicianScreens[_currentIndex],
-
-            // BottomNavigationBar para navegar entre las pantallas del técnico
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _currentIndex,
-              selectedItemColor: Theme.of(context).primaryColor,
-              unselectedItemColor: Colors.grey,
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person),
-                  label: 'Perfil',
-                ),
-                BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.work),
-                  label: 'Solicitudes',
-                ),
-              ],
-              onTap: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-            ),
-          );
-        },
+                    });
+                  }
+                },
+                isTechnicianMode: true,
+              ),
+              body: IndexedStack(
+                index: _currentIndex,
+                children: _technicianScreens,
+              ),
+              bottomNavigationBar: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                selectedItemColor: Theme.of(context).primaryColor,
+                unselectedItemColor: Colors.grey,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person),
+                    label: 'Perfil',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.chat),
+                    label: 'Chats',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.work),
+                    label: 'Solicitudes',
+                  ),
+                ],
+                onTap: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
+              ),
+            );
+          },
+        ),
       ),
     );
   }

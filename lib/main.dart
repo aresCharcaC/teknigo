@@ -9,6 +9,7 @@ import 'presentation/view_models/profile_view_model.dart';
 import 'presentation/view_models/technician_view_model.dart';
 import 'presentation/view_models/service_request_view_model.dart';
 import 'presentation/view_models/chat_view_model.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
   // Ensure Flutter widgets are initialized
@@ -16,6 +17,16 @@ void main() async {
 
   // Initialize Firebase with configured options
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Firebase AppCheck
+  await FirebaseAppCheck.instance.activate(
+    // For debug testing, use this:
+    //webRecaptchaSiteKey: 'recaptcha-v3-site-key',
+    // For Android debug, use debug provider
+    androidProvider: AndroidProvider.debug,
+    // For iOS, use DeviceCheck or AppAttest as appropriate
+    appleProvider: AppleProvider.deviceCheck,
+  );
 
   // Run the app with MultiProvider for state management
   runApp(

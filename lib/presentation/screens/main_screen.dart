@@ -99,40 +99,53 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   // Alternar entre modo cliente y técnico
-  void _toggleTechnicianMode(bool value) {
-    try {
-      // Crear el perfil de técnico si no existe (solo la primera vez)
-      if (value) {
-        // Aquí podrías mostrar un diálogo de carga mientras se verifica y crea
-        // el perfil de técnico si no existe
+  void _toggleTechnicianMode(bool value) async {
+    if (_isTechnicianMode == value) return; // Avoid unnecessary state changes
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cambiando a modo técnico...'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 1),
-          ),
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // If switching to technician mode
+      if (value) {
+        // Initialize technician profile if needed
+        final technicianViewModel = Provider.of<TechnicianViewModel>(
+          context,
+          listen: false,
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cambiando a modo cliente...'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 1),
-          ),
-        );
+
+        // Load technician profile data
+        await technicianViewModel.loadTechnicianProfile();
       }
 
-      // Cambiar el estado después de la notificación
-      Future.delayed(const Duration(milliseconds: 300), () {
-        setState(() {
-          _isTechnicianMode = value;
-        });
-      });
-    } catch (e) {
-      print('Error al cambiar al modo técnico: $e');
+      // Close loading dialog
+      Navigator.of(context).pop();
 
-      // Mostrar mensaje de error
+      // Update state
+      setState(() {
+        _isTechnicianMode = value;
+      });
+
+      // Show confirmation after state change
+      String message =
+          value ? 'Modo técnico activado' : 'Modo cliente activado';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      // Close loading dialog if error occurs
+      Navigator.of(context).pop();
+
+      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al cambiar de modo: $e'),
