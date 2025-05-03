@@ -315,7 +315,18 @@ class CategoryRepository {
       updatedAt: DateTime.now(),
     ),
 
-    // Y las demás categorías... (hasta completar las 38)
+    CategoryModel(
+      id: '18',
+      name: 'Otros',
+      description:
+          'Otros servicios no especificados en las categorías anteriores',
+      iconName: 'more_horiz',
+      iconColor: Color(0xFF9E9E9E), // Grey
+      tags: ['otros', 'varios', 'servicios adicionales', 'especiales'],
+      isActive: true,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    ),
   ];
 
   // Obtener todas las categorías

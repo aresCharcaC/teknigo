@@ -217,50 +217,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ProfileViewModel(),
-      child: Consumer<ProfileViewModel>(
-        builder: (context, profileViewModel, _) {
-          // Actualizar controladores con datos del usuario
-          if (!_isEditing && !profileViewModel.isLoading) {
-            _updateControllers(profileViewModel);
-          }
+    // Usar el provider existente en lugar de crear uno nuevo
+    return Consumer<ProfileViewModel>(
+      builder: (context, profileViewModel, _) {
+        // Actualizar controladores con datos del usuario
+        if (!_isEditing && !profileViewModel.isLoading) {
+          _updateControllers(profileViewModel);
+        }
 
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Mi Perfil'),
-              actions: [
-                if (!_isEditing)
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: _toggleEditMode,
-                    tooltip: 'Editar perfil',
-                  )
-                else
-                  TextButton(
-                    onPressed: _toggleEditMode,
-                    child: const Text(
-                      'Cancelar',
-                      style: TextStyle(color: Colors.white),
-                    ),
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Mi Perfil'),
+            actions: [
+              if (!_isEditing)
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: _toggleEditMode,
+                  tooltip: 'Editar perfil',
+                )
+              else
+                TextButton(
+                  onPressed: _toggleEditMode,
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(color: Colors.white),
                   ),
-              ],
-            ),
-            body:
-                profileViewModel.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _buildProfileContent(profileViewModel),
-            floatingActionButton:
-                _isEditing
-                    ? FloatingActionButton.extended(
-                      onPressed: _saveProfile,
-                      icon: const Icon(Icons.save),
-                      label: const Text('Guardar'),
-                    )
-                    : null,
-          );
-        },
-      ),
+                ),
+            ],
+          ),
+          body:
+              profileViewModel.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildProfileContent(profileViewModel),
+          floatingActionButton:
+              _isEditing
+                  ? FloatingActionButton.extended(
+                    onPressed: _saveProfile,
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
+                  )
+                  : null,
+        );
+      },
     );
   }
 
