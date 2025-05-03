@@ -4,20 +4,24 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'firebase_options.dart';
 import 'presentation/view_models/auth_view_model.dart';
+import 'presentation/view_models/search_view_model.dart';
+import 'presentation/view_models/profile_view_model.dart';
 
 void main() async {
-  // Asegurar que los widgets Flutter estén inicializados
+  // Ensure Flutter widgets are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializar Firebase con las opciones configuradas
+  // Initialize Firebase with configured options
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Ejecutar la aplicación con el MultiProvider para gestión de estado
+  // Run the app with MultiProvider for state management
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
-        // Aquí puedes añadir más providers según vayas desarrollando nuevas funcionalidades
+        ChangeNotifierProvider(create: (_) => SearchViewModel()),
+        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
+        // Add more providers as you develop new features
       ],
       child: const MyApp(),
     ),

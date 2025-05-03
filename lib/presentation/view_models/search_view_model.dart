@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
 import '../common/base_view_model.dart';
 
-/// Modelo de datos para un técnico en búsqueda
+/// Model for technician search results
 class TechnicianSearchItem {
   final String id;
   final String name;
@@ -25,13 +25,13 @@ class TechnicianSearchItem {
   });
 }
 
-/// ViewModel para manejar la búsqueda de técnicos
+/// ViewModel for the search screen
 class SearchViewModel extends BaseViewModel {
-  // Estado de búsqueda
+  // Search query
   String _query = '';
   String get query => _query;
 
-  // Filtros
+  // Filters
   String _selectedCategory = 'Todas';
   String get selectedCategory => _selectedCategory;
 
@@ -41,13 +41,13 @@ class SearchViewModel extends BaseViewModel {
   double _minRating = 3.0;
   double get minRating => _minRating;
 
-  // Verificar si hay filtros activos
+  // Check if any filters are active
   bool get hasActiveFilters =>
       _selectedCategory != 'Todas' ||
       _maxDistance < AppConstants.defaultCoverageRadius ||
       _minRating > 3.0;
 
-  // Lista de técnicos (datos simulados)
+  // Mock data for technicians
   final List<TechnicianSearchItem> _technicians = [
     TechnicianSearchItem(
       id: '1',
@@ -108,27 +108,28 @@ class SearchViewModel extends BaseViewModel {
   List<TechnicianSearchItem> _filteredTechnicians = [];
   List<TechnicianSearchItem> get filteredTechnicians => _filteredTechnicians;
 
-  // Inicializar el ViewModel
+  // Initialize the ViewModel
   void initialize() {
     executeSync(() {
       _filteredTechnicians = List.from(_technicians);
     });
   }
 
-  // Actualizar consulta de búsqueda
+  // Update search query
   void updateQuery(String query) {
     _query = query.toLowerCase().trim();
+    _filterTechnicians();
     notifyListeners();
   }
 
-  // Limpiar búsqueda
+  // Clear search
   void clearSearch() {
     _query = '';
     _filterTechnicians();
     notifyListeners();
   }
 
-  // Actualizar filtros
+  // Update all filters at once
   void updateFilters({
     required String category,
     required double maxDistance,
@@ -141,53 +142,53 @@ class SearchViewModel extends BaseViewModel {
     notifyListeners();
   }
 
-  // Actualizar categoría
+  // Update category filter
   void updateCategory(String category) {
     _selectedCategory = category;
     _filterTechnicians();
     notifyListeners();
   }
 
-  // Actualizar distancia máxima
+  // Update max distance filter
   void updateMaxDistance(double distance) {
     _maxDistance = distance;
     _filterTechnicians();
     notifyListeners();
   }
 
-  // Actualizar valoración mínima
+  // Update min rating filter
   void updateMinRating(double rating) {
     _minRating = rating;
     _filterTechnicians();
     notifyListeners();
   }
 
-  // Realizar búsqueda de técnicos
+  // Apply search and filters
   void searchTechnicians() {
     _filterTechnicians();
     notifyListeners();
   }
 
-  // Filtrar técnicos según criterios
+  // Filter technicians based on criteria
   void _filterTechnicians() {
     executeSync(() {
       _filteredTechnicians =
           _technicians.where((technician) {
-            // Filtrar por texto de búsqueda
+            // Filter by search query
             final matchesQuery =
                 _query.isEmpty ||
                 technician.name.toLowerCase().contains(_query) ||
                 technician.specialty.toLowerCase().contains(_query);
 
-            // Filtrar por categoría
+            // Filter by category
             final matchesCategory =
                 _selectedCategory == 'Todas' ||
                 technician.specialty == _selectedCategory;
 
-            // Filtrar por distancia
+            // Filter by distance
             final matchesDistance = technician.distance <= _maxDistance;
 
-            // Filtrar por valoración
+            // Filter by rating
             final matchesRating = technician.rating >= _minRating;
 
             return matchesQuery &&

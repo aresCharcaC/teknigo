@@ -1,10 +1,10 @@
-// lib/presentation/screens/technician/components/categories_card.dart
 import 'package:flutter/material.dart';
 
+/// Widget de tarjeta para mostrar y editar las categorías del técnico
 class CategoriesCard extends StatefulWidget {
   final bool isEditing;
   final List<String> selectedCategories;
-  final Function(List<String>, Map<String, List<String>>) onUpdateCategories;
+  final Function(List<String>) onUpdateCategories;
 
   const CategoriesCard({
     Key? key,
@@ -21,32 +21,19 @@ class _CategoriesCardState extends State<CategoriesCard> {
   // Lista de categorías disponibles
   final List<CategoryItem> _availableCategories = [
     CategoryItem(id: '1', name: 'Electricista'),
-    CategoryItem(id: '2', name: 'Plomero'),
-    CategoryItem(id: '3', name: 'Técnico PC'),
-    CategoryItem(id: '4', name: 'Refrigeración'),
-    CategoryItem(id: '5', name: 'Cerrajero'),
-    CategoryItem(id: '6', name: 'Carpintero'),
-    CategoryItem(id: '7', name: 'Pintor'),
-    CategoryItem(id: '8', name: 'Albañil'),
-    CategoryItem(id: '9', name: 'Jardinero'),
-    CategoryItem(id: '10', name: 'Limpieza'),
-    CategoryItem(id: '11', name: 'Mecánico'),
-    CategoryItem(id: '12', name: 'Electrónica'),
+    CategoryItem(id: '2', name: 'Técnico en Iluminación'),
+    CategoryItem(id: '3', name: 'Plomero'),
+    CategoryItem(id: '4', name: 'Técnico en Calefacción'),
+    CategoryItem(id: '5', name: 'Técnico PC'),
+    CategoryItem(id: '6', name: 'Reparador de Móviles'),
+    CategoryItem(id: '7', name: 'Técnico en Redes'),
+    CategoryItem(id: '8', name: 'Refrigeración'),
+    CategoryItem(id: '9', name: 'Técnico en Ventilación'),
+    CategoryItem(id: '10', name: 'Cerrajero'),
+    CategoryItem(id: '11', name: 'Técnico en Alarmas'),
+    CategoryItem(id: '12', name: 'Carpintero'),
+    // Aquí puedes añadir todas las categorías necesarias
   ];
-
-  // Mapa de tags por categoría
-  Map<String, List<String>> _tagsMap = {};
-
-  @override
-  void initState() {
-    super.initState();
-    // Inicializar mapa de tags
-    for (final categoryId in widget.selectedCategories) {
-      if (!_tagsMap.containsKey(categoryId)) {
-        _tagsMap[categoryId] = [];
-      }
-    }
-  }
 
   // Alternar categoría seleccionada
   void _toggleCategory(String categoryId) {
@@ -54,131 +41,17 @@ class _CategoriesCardState extends State<CategoriesCard> {
 
     if (updatedCategories.contains(categoryId)) {
       updatedCategories.remove(categoryId);
-      _tagsMap.remove(categoryId);
     } else {
       updatedCategories.add(categoryId);
-      _tagsMap[categoryId] = [];
     }
 
-    widget.onUpdateCategories(updatedCategories, _tagsMap);
-  }
-
-  // Mostrar diálogo para seleccionar tags
-  void _showTagsDialog(String categoryId, String categoryName) {
-    // Tags disponibles para esta categoría
-    final allTags = _getTagsForCategory(categoryId);
-
-    // Tags seleccionados actualmente
-    final selectedTags = List<String>.from(_tagsMap[categoryId] ?? []);
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setState) => AlertDialog(
-                  title: Text('Seleccionar especialidades para $categoryName'),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: ListView(
-                      shrinkWrap: true,
-                      children:
-                          allTags.map((tag) {
-                            final isSelected = selectedTags.contains(tag);
-                            return CheckboxListTile(
-                              title: Text(tag),
-                              value: isSelected,
-                              onChanged: (value) {
-                                setState(() {
-                                  if (value == true) {
-                                    selectedTags.add(tag);
-                                  } else {
-                                    selectedTags.remove(tag);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('CANCELAR'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        // Guardar los tags seleccionados
-                        Map<String, List<String>> updatedTags = Map.from(
-                          _tagsMap,
-                        );
-                        updatedTags[categoryId] = selectedTags;
-
-                        widget.onUpdateCategories(
-                          widget.selectedCategories,
-                          updatedTags,
-                        );
-                        _tagsMap = updatedTags;
-
-                        Navigator.pop(context);
-                      },
-                      child: const Text('GUARDAR'),
-                    ),
-                  ],
-                ),
-          ),
-    );
-  }
-
-  // Obtener tags disponibles para una categoría
-  List<String> _getTagsForCategory(String categoryId) {
-    switch (categoryId) {
-      case '1': // Electricista
-        return [
-          'instalación',
-          'cableado',
-          'corto circuito',
-          'enchufes',
-          'iluminación',
-          'transformadores',
-        ];
-      case '2': // Plomero
-        return [
-          'agua',
-          'tuberías',
-          'grifos',
-          'inodoros',
-          'duchas',
-          'fugas',
-          'desagües',
-        ];
-      case '3': // Técnico PC
-        return [
-          'reparación',
-          'formateo',
-          'virus',
-          'mantenimiento',
-          'hardware',
-          'software',
-          'redes',
-        ];
-      case '4': // Refrigeración
-        return [
-          'aire acondicionado',
-          'refrigeradores',
-          'congeladores',
-          'mantenimiento',
-          'instalación',
-        ];
-      default:
-        return ['general', 'reparación', 'mantenimiento', 'instalación'];
-    }
+    widget.onUpdateCategories(updatedCategories);
   }
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -195,40 +68,8 @@ class _CategoriesCardState extends State<CategoriesCard> {
                 if (widget.isEditing)
                   TextButton.icon(
                     onPressed: () {
-                      // Mostrar diálogo de todas las categorías disponibles
-                      showDialog(
-                        context: context,
-                        builder:
-                            (context) => AlertDialog(
-                              title: const Text('Seleccionar categorías'),
-                              content: SizedBox(
-                                width: double.maxFinite,
-                                child: ListView(
-                                  shrinkWrap: true,
-                                  children:
-                                      _availableCategories.map((category) {
-                                        final isSelected = widget
-                                            .selectedCategories
-                                            .contains(category.id);
-                                        return CheckboxListTile(
-                                          title: Text(category.name),
-                                          value: isSelected,
-                                          onChanged: (value) {
-                                            _toggleCategory(category.id);
-                                            Navigator.pop(context);
-                                          },
-                                        );
-                                      }).toList(),
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('CERRAR'),
-                                ),
-                              ],
-                            ),
-                      );
+                      // Mostrar diálogo para seleccionar categorías
+                      _showCategoriesDialog(context);
                     },
                     icon: const Icon(Icons.add),
                     label: const Text('Agregar'),
@@ -248,103 +89,82 @@ class _CategoriesCardState extends State<CategoriesCard> {
                     ),
                   ),
                 )
-                : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: widget.selectedCategories.length,
-                  itemBuilder: (context, index) {
-                    final categoryId = widget.selectedCategories[index];
-                    final category = _availableCategories.firstWhere(
-                      (c) => c.id == categoryId,
-                      orElse:
-                          () =>
-                              CategoryItem(id: categoryId, name: 'Desconocida'),
-                    );
+                : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children:
+                      widget.selectedCategories.map((categoryId) {
+                        // Encontrar el nombre de la categoría
+                        final category = _availableCategories.firstWhere(
+                          (c) => c.id == categoryId,
+                          orElse:
+                              () => CategoryItem(
+                                id: categoryId,
+                                name: 'Desconocida',
+                              ),
+                        );
 
-                    // Obtener los tags seleccionados para esta categoría
-                    final selectedTags = _tagsMap[categoryId] ?? [];
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(
-                          category.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle:
-                            selectedTags.isNotEmpty
-                                ? Wrap(
-                                  spacing: 4,
-                                  children:
-                                      selectedTags
-                                          .map(
-                                            (tag) => Chip(
-                                              label: Text(
-                                                tag,
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                ),
-                                              ),
-                                              backgroundColor:
-                                                  Colors.blue.shade50,
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              materialTapTargetSize:
-                                                  MaterialTapTargetSize
-                                                      .shrinkWrap,
-                                            ),
-                                          )
-                                          .toList(),
-                                )
-                                : const Text(
-                                  'Sin especialidades seleccionadas',
-                                ),
-                        trailing:
-                            widget.isEditing
-                                ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                      ),
-                                      onPressed:
-                                          () => _showTagsDialog(
-                                            categoryId,
-                                            category.name,
-                                          ),
-                                      tooltip: 'Editar especialidades',
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                      ),
-                                      onPressed: () {
-                                        _toggleCategory(categoryId);
-                                      },
-                                      tooltip: 'Eliminar categoría',
-                                    ),
-                                  ],
-                                )
-                                : null,
-                        onTap:
-                            widget.isEditing
-                                ? () =>
-                                    _showTagsDialog(categoryId, category.name)
-                                : null,
-                      ),
-                    );
-                  },
+                        return Chip(
+                          label: Text(category.name),
+                          backgroundColor: Colors.blue.shade50,
+                          deleteIcon:
+                              widget.isEditing
+                                  ? const Icon(Icons.close, size: 16)
+                                  : null,
+                          onDeleted:
+                              widget.isEditing
+                                  ? () => _toggleCategory(categoryId)
+                                  : null,
+                        );
+                      }).toList(),
                 ),
           ],
         ),
       ),
     );
   }
+
+  // Mostrar diálogo para seleccionar categorías
+  void _showCategoriesDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Seleccionar categorías'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 400, // Altura fija para el diálogo
+              child: ListView.builder(
+                itemCount: _availableCategories.length,
+                itemBuilder: (context, index) {
+                  final category = _availableCategories[index];
+                  final isSelected = widget.selectedCategories.contains(
+                    category.id,
+                  );
+
+                  return CheckboxListTile(
+                    title: Text(category.name),
+                    value: isSelected,
+                    onChanged: (value) {
+                      _toggleCategory(category.id);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CERRAR'),
+              ),
+            ],
+          ),
+    );
+  }
 }
 
+/// Modelo para categoría
 class CategoryItem {
   final String id;
   final String name;

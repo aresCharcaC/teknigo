@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
-import '../../../../auth/services/storage_service.dart';
 
 class ProfileHeader extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -30,21 +29,21 @@ class ProfileHeader extends StatelessWidget {
         // Avatar con imagen
         _buildProfileAvatar(context),
         const SizedBox(width: 16),
-        
+
         // Información del perfil
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               isEditing
-                ? TextField(
+                  ? TextField(
                     controller: nameController,
                     decoration: const InputDecoration(
                       labelText: 'Nombre',
                       border: OutlineInputBorder(),
                     ),
                   )
-                : Text(
+                  : Text(
                     userData['name'] ?? '',
                     style: const TextStyle(
                       fontSize: 22,
@@ -56,10 +55,7 @@ class ProfileHeader extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 userData['email'] ?? '',
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -67,11 +63,7 @@ class ProfileHeader extends StatelessWidget {
               // Valoración
               Row(
                 children: [
-                  const Icon(
-                    Icons.star,
-                    color: Colors.amber,
-                    size: 20,
-                  ),
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
                   const SizedBox(width: 4),
                   Text(
                     '${userData['rating'] ?? 0}',
@@ -83,10 +75,7 @@ class ProfileHeader extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     '(${userData['reviewCount'] ?? 0} reseñas)',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   ),
                 ],
               ),
@@ -152,9 +141,11 @@ class ProfileHeader extends StatelessWidget {
                 fit: BoxFit.cover,
                 width: radius * 2,
                 height: radius * 2,
-                placeholder: (context, url) => const CircularProgressIndicator(),
-                errorWidget: (context, url, error) => 
-                    Icon(Icons.person, size: radius, color: Colors.grey),
+                placeholder:
+                    (context, url) => const CircularProgressIndicator(),
+                errorWidget:
+                    (context, url, error) =>
+                        Icon(Icons.person, size: radius, color: Colors.grey),
               ),
             ),
           ),

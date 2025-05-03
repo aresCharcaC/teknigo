@@ -1,15 +1,13 @@
-// lib/presentation/screens/technician/components/location_map_card.dart
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../../../core/services/location_service.dart';
 
+/// Widget de tarjeta para mostrar y editar la ubicación del técnico
 class LocationMapCard extends StatelessWidget {
   final LatLng? location;
   final String? address;
   final double coverageRadius;
   final bool isEditing;
   final Function() onSelectLocation;
-  final LocationService locationService;
 
   const LocationMapCard({
     Key? key,
@@ -18,7 +16,6 @@ class LocationMapCard extends StatelessWidget {
     required this.coverageRadius,
     required this.isEditing,
     required this.onSelectLocation,
-    required this.locationService,
   }) : super(key: key);
 
   @override
@@ -99,6 +96,7 @@ class LocationMapCard extends StatelessWidget {
     );
   }
 
+  // Construir mapa con ubicación
   Widget _buildLocationMap(BuildContext context) {
     if (location == null) {
       return Container(
@@ -122,20 +120,9 @@ class LocationMapCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: GoogleMap(
-          initialCameraPosition: CameraPosition(target: location!, zoom: 15),
+          initialCameraPosition: CameraPosition(target: location!, zoom: 14),
           markers: {
-            Marker(
-              markerId: const MarkerId('myLocation'),
-              position: location!,
-              draggable: isEditing,
-              onDragEnd:
-                  isEditing
-                      ? (newPosition) async {
-                        // Este callback necesitará ser manejado en el widget padre
-                        // Solo se proporciona como placeholder
-                      }
-                      : null,
-            ),
+            Marker(markerId: const MarkerId('myLocation'), position: location!),
           },
           circles: {
             Circle(
@@ -147,19 +134,9 @@ class LocationMapCard extends StatelessWidget {
               strokeWidth: 2,
             ),
           },
-          zoomControlsEnabled: true,
-          mapToolbarEnabled: true,
-          myLocationEnabled: true,
-          myLocationButtonEnabled: true,
-          mapType: MapType.normal,
-          onMapCreated: (GoogleMapController controller) {
-            // Puedes guardar el controlador aquí si necesitas
-            Future.delayed(Duration(milliseconds: 500), () {
-              controller.animateCamera(
-                CameraUpdate.newLatLngZoom(location!, 15),
-              );
-            });
-          },
+          zoomControlsEnabled: false,
+          mapToolbarEnabled: false,
+          myLocationButtonEnabled: false,
         ),
       ),
     );

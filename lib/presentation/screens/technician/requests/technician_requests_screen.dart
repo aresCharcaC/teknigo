@@ -1,6 +1,10 @@
-// lib/presentation/screens/technician/technician_requests_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../view_models/technician_view_model.dart';
+import '../../../view_models/service_request_view_model.dart';
 
+/// Pantalla para que los técnicos gestionen las solicitudes de servicio
 class TechnicianRequestsScreen extends StatefulWidget {
   const TechnicianRequestsScreen({Key? key}) : super(key: key);
 
@@ -11,91 +15,23 @@ class TechnicianRequestsScreen extends StatefulWidget {
 
 class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
     with SingleTickerProviderStateMixin {
-  bool _isLoading = false;
   late TabController _tabController;
-
-  // Listas de solicitudes (datos simulados)
-  final List<ServiceRequest> _pendingRequests = [
-    ServiceRequest(
-      id: '1',
-      clientName: 'María González',
-      category: 'Electricista',
-      description:
-          'No funciona la luz en la cocina, necesito que la reparen urgente.',
-      location: 'Av. Arequipa 456, Arequipa',
-      distance: 2.3,
-      createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
-      budget: 120,
-      isUrgent: true,
-    ),
-    ServiceRequest(
-      id: '2',
-      clientName: 'Pedro Ramírez',
-      category: 'Electricista',
-      description: 'Necesito instalar lámparas en mi sala, son 3 en total.',
-      location: 'Calle Melgar 234, Arequipa',
-      distance: 4.1,
-      createdAt: DateTime.now().subtract(const Duration(minutes: 22)),
-      budget: 80,
-      isUrgent: false,
-    ),
-  ];
-
-  final List<ServiceRequest> _acceptedRequests = [
-    ServiceRequest(
-      id: '3',
-      clientName: 'Juan Pérez',
-      category: 'Técnico PC',
-      description:
-          'Mi computadora se reinicia constantemente, necesito un diagnóstico y reparación.',
-      location: 'Urb. Los Ángeles, Calle 5, Arequipa',
-      distance: 3.5,
-      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-      budget: 150,
-      isUrgent: false,
-      acceptedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      scheduledDate: DateTime.now().add(const Duration(days: 1, hours: 15)),
-    ),
-  ];
-
-  final List<ServiceRequest> _completedRequests = [
-    ServiceRequest(
-      id: '4',
-      clientName: 'Ana Suárez',
-      category: 'Electricista',
-      description: 'Cortocircuito en el dormitorio, reparado exitosamente.',
-      location: 'Av. Kennedy 789, Arequipa',
-      distance: 1.8,
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      budget: 100,
-      isUrgent: true,
-      acceptedAt: DateTime.now().subtract(const Duration(days: 2, hours: 1)),
-      completedAt: DateTime.now().subtract(const Duration(days: 1)),
-      rating: 5.0,
-      review: 'Excelente servicio, muy profesional y puntual.',
-    ),
-    ServiceRequest(
-      id: '5',
-      clientName: 'Roberto Gómez',
-      category: 'Técnico PC',
-      description:
-          'Formateo e instalación de Windows, actualización de drivers.',
-      location: 'Urb. Santa María, Arequipa',
-      distance: 5.3,
-      createdAt: DateTime.now().subtract(const Duration(days: 4)),
-      budget: 120,
-      isUrgent: false,
-      acceptedAt: DateTime.now().subtract(const Duration(days: 4, hours: 2)),
-      completedAt: DateTime.now().subtract(const Duration(days: 3)),
-      rating: 4.5,
-      review: 'Buen trabajo, recomendado.',
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // Cargar solicitudes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final serviceViewModel = Provider.of<ServiceRequestViewModel>(
+        context,
+        listen: false,
+      );
+      serviceViewModel.loadPendingRequests();
+      serviceViewModel.loadAcceptedServices();
+      serviceViewModel.loadCompletedServices();
+    });
   }
 
   @override
@@ -104,147 +40,57 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
     super.dispose();
   }
 
-  // Aceptar una solicitud
-  void _acceptRequest(ServiceRequest request) {
-    setState(() {
-      _pendingRequests.remove(request);
-      // Actualizar la solicitud con la fecha de aceptación
-      final updatedRequest = ServiceRequest(
-        id: request.id,
-        clientName: request.clientName,
-        category: request.category,
-        description: request.description,
-        location: request.location,
-        distance: request.distance,
-        createdAt: request.createdAt,
-        budget: request.budget,
-        isUrgent: request.isUrgent,
-        acceptedAt: DateTime.now(),
-        // Programar para mañana por defecto
-        scheduledDate: DateTime.now().add(const Duration(days: 1)),
-      );
-      _acceptedRequests.add(updatedRequest);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Has aceptado la solicitud de ${request.clientName}'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  // Rechazar una solicitud
-  void _rejectRequest(ServiceRequest request) {
-    setState(() {
-      _pendingRequests.remove(request);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Has rechazado la solicitud de ${request.clientName}'),
-        backgroundColor: Colors.grey,
-      ),
-    );
-  }
-
-  // Marcar una solicitud como completada
-  void _completeRequest(ServiceRequest request) {
-    // Mostrar diálogo de confirmación
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Completar servicio'),
-            content: const Text(
-              '¿Estás seguro de marcar este servicio como completado?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('CANCELAR'),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _acceptedRequests.remove(request);
-                    // Actualizar la solicitud con la fecha de finalización
-                    final updatedRequest = ServiceRequest(
-                      id: request.id,
-                      clientName: request.clientName,
-                      category: request.category,
-                      description: request.description,
-                      location: request.location,
-                      distance: request.distance,
-                      createdAt: request.createdAt,
-                      budget: request.budget,
-                      isUrgent: request.isUrgent,
-                      acceptedAt: request.acceptedAt,
-                      scheduledDate: request.scheduledDate,
-                      completedAt: DateTime.now(),
-                    );
-                    _completedRequests.add(updatedRequest);
-                  });
-                  Navigator.pop(context);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Servicio marcado como completado'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                child: const Text('COMPLETAR'),
-              ),
-            ],
-          ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return Column(
-      children: [
-        // Tabs
-        TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Pendientes'),
-            Tab(text: 'Aceptados'),
-            Tab(text: 'Completados'),
-          ],
-          labelColor: Theme.of(context).primaryColor,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Theme.of(context).primaryColor,
-        ),
-
-        // Contenido del tab
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
+    return ChangeNotifierProvider(
+      create: (_) => ServiceRequestViewModel(),
+      child: Consumer<ServiceRequestViewModel>(
+        builder: (context, requestViewModel, _) {
+          return Column(
             children: [
-              // Tab de solicitudes pendientes
-              _buildPendingRequestsList(),
+              // Tabs
+              TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Pendientes'),
+                  Tab(text: 'Aceptados'),
+                  Tab(text: 'Completados'),
+                ],
+                labelColor: Theme.of(context).primaryColor,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Theme.of(context).primaryColor,
+              ),
 
-              // Tab de solicitudes aceptadas
-              _buildAcceptedRequestsList(),
+              // Contenido del tab
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Tab de solicitudes pendientes
+                    _buildPendingRequestsList(requestViewModel),
 
-              // Tab de solicitudes completadas
-              _buildCompletedRequestsList(),
+                    // Tab de solicitudes aceptadas
+                    _buildAcceptedRequestsList(requestViewModel),
+
+                    // Tab de solicitudes completadas
+                    _buildCompletedRequestsList(requestViewModel),
+                  ],
+                ),
+              ),
             ],
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 
   // Lista de solicitudes pendientes
-  Widget _buildPendingRequestsList() {
-    if (_pendingRequests.isEmpty) {
+  Widget _buildPendingRequestsList(ServiceRequestViewModel viewModel) {
+    if (viewModel.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (viewModel.pendingRequests.isEmpty) {
       return _buildEmptyState(
         icon: Icons.inbox,
         title: 'No hay solicitudes pendientes',
@@ -254,22 +100,30 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _pendingRequests.length,
+      itemCount: viewModel.pendingRequests.length,
       itemBuilder: (context, index) {
-        final request = _pendingRequests[index];
+        final request = viewModel.pendingRequests[index];
         return _buildRequestCard(
           request: request,
           isPending: true,
           isAccepted: false,
           isCompleted: false,
+          onAccept: () => viewModel.acceptRequest(request.id),
+          onReject: () => viewModel.rejectRequest(request.id),
+          onComplete: null,
+          onContact: null,
         );
       },
     );
   }
 
   // Lista de solicitudes aceptadas
-  Widget _buildAcceptedRequestsList() {
-    if (_acceptedRequests.isEmpty) {
+  Widget _buildAcceptedRequestsList(ServiceRequestViewModel viewModel) {
+    if (viewModel.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (viewModel.acceptedServices.isEmpty) {
       return _buildEmptyState(
         icon: Icons.handshake,
         title: 'No hay servicios en curso',
@@ -279,22 +133,30 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _acceptedRequests.length,
+      itemCount: viewModel.acceptedServices.length,
       itemBuilder: (context, index) {
-        final request = _acceptedRequests[index];
+        final request = viewModel.acceptedServices[index];
         return _buildRequestCard(
           request: request,
           isPending: false,
           isAccepted: true,
           isCompleted: false,
+          onAccept: null,
+          onReject: null,
+          onComplete: () => viewModel.completeService(request.id),
+          onContact: () => _contactClient(request),
         );
       },
     );
   }
 
   // Lista de solicitudes completadas
-  Widget _buildCompletedRequestsList() {
-    if (_completedRequests.isEmpty) {
+  Widget _buildCompletedRequestsList(ServiceRequestViewModel viewModel) {
+    if (viewModel.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (viewModel.completedServices.isEmpty) {
       return _buildEmptyState(
         icon: Icons.check_circle,
         title: 'No hay servicios completados',
@@ -304,14 +166,18 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _completedRequests.length,
+      itemCount: viewModel.completedServices.length,
       itemBuilder: (context, index) {
-        final request = _completedRequests[index];
+        final request = viewModel.completedServices[index];
         return _buildRequestCard(
           request: request,
           isPending: false,
           isAccepted: false,
           isCompleted: true,
+          onAccept: null,
+          onReject: null,
+          onComplete: null,
+          onContact: null,
         );
       },
     );
@@ -353,6 +219,10 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
     required bool isPending,
     required bool isAccepted,
     required bool isCompleted,
+    VoidCallback? onAccept,
+    VoidCallback? onReject,
+    VoidCallback? onComplete,
+    VoidCallback? onContact,
   }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -528,7 +398,7 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _rejectRequest(request),
+                      onPressed: onReject,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                       ),
@@ -538,7 +408,7 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _acceptRequest(request),
+                      onPressed: onAccept,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                       ),
@@ -552,14 +422,7 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Navegar a chat con cliente
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Próximamente: Chat con cliente'),
-                          ),
-                        );
-                      },
+                      onPressed: onContact,
                       icon: const Icon(Icons.chat),
                       label: const Text('Contactar'),
                     ),
@@ -567,7 +430,7 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _completeRequest(request),
+                      onPressed: onComplete,
                       icon: const Icon(Icons.check_circle),
                       label: const Text('Completar'),
                       style: ElevatedButton.styleFrom(
@@ -597,6 +460,19 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
         ),
       ),
     );
+  }
+
+  // Contactar al cliente
+  void _contactClient(ServiceRequest request) {
+    // Navegar al chat con el cliente
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Contactando a ${request.clientName}...'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    // Navegar a la pantalla de chat (implementación pendiente)
   }
 
   // Formatear fecha y hora
@@ -641,7 +517,7 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen>
   }
 }
 
-// Clase para solicitudes de servicio
+/// Modelo para solicitud de servicio
 class ServiceRequest {
   final String id;
   final String clientName;

@@ -1,6 +1,6 @@
-// lib/presentation/screens/technician/components/availability_card.dart
 import 'package:flutter/material.dart';
 
+/// Widget de tarjeta para mostrar y editar la disponibilidad del técnico
 class AvailabilityCard extends StatelessWidget {
   final bool isEditing;
   final bool isServicesActive;

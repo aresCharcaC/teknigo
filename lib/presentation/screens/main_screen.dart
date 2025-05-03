@@ -7,7 +7,8 @@ import '../view_models/technician_view_model.dart';
 import '../../core/constants/app_constants.dart';
 import 'home/home_screen.dart';
 import 'search/search_screen.dart';
-import 'technician/technician_mode_screen.dart';
+
+///import 'technician/technician_mode_screen.dart';
 import 'profile/profile_screen.dart';
 
 /// Pantalla principal que contiene el BottomNavigationBar y el menú lateral
@@ -32,7 +33,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     // Si está en modo técnico, mostrar la pantalla de técnico
     if (_isTechnicianMode) {
-      return TechnicianModeScreen(onSwitchMode: _toggleTechnicianMode);
+      ///return TechnicianModeScreen(onSwitchMode: _toggleTechnicianMode);
     }
 
     return MultiProvider(
