@@ -1,3 +1,5 @@
+// lib/presentation/view_models/technician_view_model.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -171,6 +173,29 @@ class TechnicianViewModel extends BaseViewModel {
     }
   }
 
+  // Eliminar imagen de perfil
+  Future<Resource<bool>> removeProfileImage() async {
+    try {
+      setLoading();
+
+      bool success = false;
+      if (_technicianData.containsKey('profileImage') &&
+          _technicianData['profileImage'] != null) {
+        success = await _repository.removeProfileImage();
+        if (success) {
+          _technicianData['profileImage'] = null;
+        }
+      }
+
+      setLoaded();
+      return Resource.success(success);
+    } catch (e) {
+      final errorMessage = 'Error al eliminar imagen de perfil: $e';
+      setError(errorMessage);
+      return Resource.error(errorMessage);
+    }
+  }
+
   // Subir imagen de negocio
   Future<Resource<String?>> uploadBusinessImage(File imageFile) async {
     try {
@@ -187,6 +212,29 @@ class TechnicianViewModel extends BaseViewModel {
       return Resource.success(url);
     } catch (e) {
       final errorMessage = 'Error al subir imagen de negocio: $e';
+      setError(errorMessage);
+      return Resource.error(errorMessage);
+    }
+  }
+
+  // Eliminar imagen de negocio
+  Future<Resource<bool>> removeBusinessImage() async {
+    try {
+      setLoading();
+
+      bool success = false;
+      if (_technicianData.containsKey('businessImage') &&
+          _technicianData['businessImage'] != null) {
+        success = await _repository.removeBusinessImage();
+        if (success) {
+          _technicianData['businessImage'] = null;
+        }
+      }
+
+      setLoaded();
+      return Resource.success(success);
+    } catch (e) {
+      final errorMessage = 'Error al eliminar imagen de negocio: $e';
       setError(errorMessage);
       return Resource.error(errorMessage);
     }

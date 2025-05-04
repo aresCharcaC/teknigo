@@ -1,19 +1,21 @@
+// lib/presentation/screens/technician/profile/technician_profile_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../view_models/technician_view_model.dart';
+import '../../../view_models/category_view_model.dart';
 import '../../../widgets/custom_text_field.dart';
-import '../components/categories_card.dart';
 import '../components/skills_card.dart';
+import '../components/categories_card.dart';
 import '../components/availability_card.dart';
 import '../components/location_map_card.dart';
+import '../components/business_profile_card.dart';
+import '../location_picker_screen.dart';
 
-/// Pantalla de perfil del técnico
-///
-/// Permite al técnico configurar su perfil profesional, habilidades,
-/// disponibilidad y ubicación de servicio.
 class TechnicianProfileScreen extends StatefulWidget {
   const TechnicianProfileScreen({Key? key}) : super(key: key);
 
@@ -29,10 +31,12 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   final _descriptionController = TextEditingController();
   final _experienceController = TextEditingController();
   final _businessNameController = TextEditingController();
+  final _businessDescriptionController = TextEditingController();
 
   bool _isEditing = false;
   File? _profileImageFile;
   File? _businessImageFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -45,6 +49,13 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
         listen: false,
       );
       technicianViewModel.loadTechnicianProfile();
+
+      // También cargar categorías disponibles
+      final categoryViewModel = Provider.of<CategoryViewModel>(
+        context,
+        listen: false,
+      );
+      categoryViewModel.loadCategories();
     });
   }
 
@@ -55,6 +66,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
     _descriptionController.dispose();
     _experienceController.dispose();
     _businessNameController.dispose();
+    _businessDescriptionController.dispose();
     super.dispose();
   }
 
@@ -68,6 +80,8 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
       _experienceController.text = viewModel.technicianData['experience'] ?? '';
       _businessNameController.text =
           viewModel.technicianData['businessName'] ?? '';
+      _businessDescriptionController.text =
+          viewModel.technicianData['businessDescription'] ?? '';
     }
   }
 
@@ -95,45 +109,82 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
 
     final viewModel = Provider.of<TechnicianViewModel>(context, listen: false);
 
-    // Crear mapa con datos actualizados
-    final updatedData = {
-      'name': _nameController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'description': _descriptionController.text.trim(),
-      'experience': _experienceController.text.trim(),
-      'isIndividual': viewModel.isIndividual,
-      'isAvailable': viewModel.isAvailable,
-      'isServicesActive': viewModel.isServicesActive,
-      'businessName': _businessNameController.text.trim(),
-      'categories': viewModel.selectedCategories,
-      'skills': viewModel.skills,
-    };
+    // Mostrar indicador de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
 
-    // Si hay imagen nueva, procesarla
-    if (_profileImageFile != null) {
-      await viewModel.uploadProfileImage(_profileImageFile!);
-    }
+    try {
+      // Crear mapa con datos actualizados
+      final updatedData = {
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'experience': _experienceController.text.trim(),
+        'isIndividual': viewModel.isIndividual,
+        'isAvailable': viewModel.isAvailable,
+        'isServicesActive': viewModel.isServicesActive,
+        'businessName': _businessNameController.text.trim(),
+        'businessDescription': _businessDescriptionController.text.trim(),
+        'categories': viewModel.selectedCategories,
+        'skills': viewModel.skills,
+      };
 
-    if (_businessImageFile != null) {
-      await viewModel.uploadBusinessImage(_businessImageFile!);
-    }
+      // Si hay imagen nueva de perfil, procesarla
+      if (_profileImageFile != null) {
+        await viewModel.uploadProfileImage(_profileImageFile!);
+      }
 
-    // Actualizar perfil
-    final result = await viewModel.updateTechnicianProfile(updatedData);
+      // Si hay imagen nueva de negocio, procesarla
+      if (_businessImageFile != null) {
+        await viewModel.uploadBusinessImage(_businessImageFile!);
+      }
 
-    if (result.isSuccess) {
-      setState(() {
-        _isEditing = false;
-        _profileImageFile = null;
-        _businessImageFile = null;
-      });
+      // Actualizar perfil
+      final result = await viewModel.updateTechnicianProfile(updatedData);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Perfil actualizado correctamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // Cerrar diálogo de carga
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (result.isSuccess) {
+        setState(() {
+          _isEditing = false;
+          _profileImageFile = null;
+          _businessImageFile = null;
+        });
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Perfil actualizado correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${result.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Cerrar diálogo de carga
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar perfil: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -151,12 +202,15 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                   title: const Text('Tomar foto'),
                   onTap: () async {
                     Navigator.pop(context);
-                    // Implementar selección de cámara
-                    // Por ahora, simulamos con una imagen
-                    setState(() {
-                      // En una implementación real, aquí se tomaría la foto
-                      // _profileImageFile = ...
-                    });
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.camera,
+                      imageQuality: 80,
+                    );
+                    if (image != null) {
+                      setState(() {
+                        _profileImageFile = File(image.path);
+                      });
+                    }
                   },
                 ),
                 ListTile(
@@ -164,12 +218,15 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                   title: const Text('Seleccionar de galería'),
                   onTap: () async {
                     Navigator.pop(context);
-                    // Implementar selección de galería
-                    // Por ahora, simulamos con una imagen
-                    setState(() {
-                      // En una implementación real, aquí se seleccionaría la imagen
-                      // _profileImageFile = ...
-                    });
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 80,
+                    );
+                    if (image != null) {
+                      setState(() {
+                        _profileImageFile = File(image.path);
+                      });
+                    }
                   },
                 ),
                 if (Provider.of<TechnicianViewModel>(
@@ -185,10 +242,14 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                     ),
                     onTap: () async {
                       Navigator.pop(context);
-                      // Implementar eliminar foto
-                      // Por ahora, simulamos
+                      // Eliminar foto de perfil
+                      final viewModel = Provider.of<TechnicianViewModel>(
+                        context,
+                        listen: false,
+                      );
+                      await viewModel.removeProfileImage();
                       setState(() {
-                        // En una implementación real, aquí se eliminaría la foto
+                        _profileImageFile = null;
                       });
                     },
                   ),
@@ -196,6 +257,101 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
             ),
           ),
     );
+  }
+
+  // Método para seleccionar imagen de negocio
+  Future<void> _pickBusinessImage() async {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera),
+                  title: const Text('Tomar foto'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.camera,
+                      imageQuality: 80,
+                    );
+                    if (image != null) {
+                      setState(() {
+                        _businessImageFile = File(image.path);
+                      });
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Seleccionar de galería'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 80,
+                    );
+                    if (image != null) {
+                      setState(() {
+                        _businessImageFile = File(image.path);
+                      });
+                    }
+                  },
+                ),
+                if (Provider.of<TechnicianViewModel>(
+                      context,
+                      listen: false,
+                    ).technicianData['businessImage'] !=
+                    null)
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text(
+                      'Eliminar foto del negocio',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      // Eliminar foto de negocio
+                      final viewModel = Provider.of<TechnicianViewModel>(
+                        context,
+                        listen: false,
+                      );
+                      await viewModel.removeBusinessImage();
+                      setState(() {
+                        _businessImageFile = null;
+                      });
+                    },
+                  ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  // Método para seleccionar ubicación
+  Future<void> _selectLocation(TechnicianViewModel viewModel) async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => LocationPickerScreen(
+              initialPosition: viewModel.location,
+              coverageRadius: viewModel.coverageRadius,
+            ),
+      ),
+    );
+
+    if (result != null) {
+      // Actualizar ubicación del técnico
+      final position = result['position'] as LatLng;
+      final address = result['address'] as String;
+      final coverageRadius = result['coverageRadius'] as double;
+
+      await viewModel.updateLocation(position, address, coverageRadius);
+      setState(() {}); // Refrescar UI
+    }
   }
 
   @override
@@ -211,7 +367,42 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        return _buildProfileContent(technicianViewModel);
+        return Stack(
+          children: [
+            _buildProfileContent(technicianViewModel),
+
+            // Botón de editar perfil (fixed at bottom)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child:
+                  _isEditing
+                      ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FloatingActionButton(
+                            heroTag: 'cancel',
+                            backgroundColor: Colors.red,
+                            child: const Icon(Icons.close),
+                            onPressed: _toggleEditMode,
+                          ),
+                          const SizedBox(width: 12),
+                          FloatingActionButton(
+                            heroTag: 'save',
+                            backgroundColor: Colors.green,
+                            child: const Icon(Icons.check),
+                            onPressed: _saveProfile,
+                          ),
+                        ],
+                      )
+                      : FloatingActionButton(
+                        heroTag: 'edit',
+                        child: const Icon(Icons.edit),
+                        onPressed: _toggleEditMode,
+                      ),
+            ),
+          ],
+        );
       },
     );
   }
@@ -251,15 +442,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
               address: technicianViewModel.address,
               coverageRadius: technicianViewModel.coverageRadius,
               isEditing: _isEditing,
-              onSelectLocation: () {
-                // Implementar selección de ubicación
-                // Por ahora, muestra un mensaje
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Próximamente: Selección de ubicación'),
-                  ),
-                );
-              },
+              onSelectLocation: () => _selectLocation(technicianViewModel),
             ),
 
             const SizedBox(height: 16),
@@ -284,7 +467,34 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
               },
             ),
 
-            const SizedBox(height: 40), // Espacio adicional al final
+            // Si es un negocio, mostrar tarjeta de perfil de negocio
+            if (!technicianViewModel.isIndividual) ...[
+              const SizedBox(height: 16),
+
+              BusinessProfileCard(
+                isEditing: _isEditing,
+                businessName: _businessNameController.text,
+                businessDescription: _businessDescriptionController.text,
+                businessImage:
+                    _businessImageFile ??
+                    (technicianViewModel.technicianData['businessImage'] != null
+                        ? NetworkImageWithUrl(
+                          technicianViewModel.technicianData['businessImage'],
+                        )
+                        : null),
+                onPickImage: _pickBusinessImage,
+                onBusinessNameChanged: (value) {
+                  _businessNameController.text = value;
+                },
+                onBusinessDescriptionChanged: (value) {
+                  _businessDescriptionController.text = value;
+                },
+              ),
+            ],
+
+            const SizedBox(
+              height: 80,
+            ), // Espacio adicional para evitar que el botón flotante tape contenido
           ],
         ),
       ),
@@ -344,35 +554,10 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                         style: TextStyle(color: Colors.grey.shade600),
                       ),
 
-                      if (!_isEditing &&
-                          technicianViewModel.technicianData['rating'] !=
-                              null) ...[
+                      if (!_isEditing) ...[
                         const SizedBox(height: 8),
-                        // Valoración
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${technicianViewModel.technicianData['rating']?.toStringAsFixed(1) ?? '0.0'}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '(${technicianViewModel.technicianData['reviewCount'] ?? 0} reseñas)',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
+                        // Valoración con estrellas
+                        _buildRatingStars(technicianViewModel),
                       ],
                     ],
                   ),
@@ -451,6 +636,39 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // Widget para mostrar estrellas de calificación
+  Widget _buildRatingStars(TechnicianViewModel technicianViewModel) {
+    final double rating =
+        technicianViewModel.technicianData['rating'] != null
+            ? (technicianViewModel.technicianData['rating'] as num).toDouble()
+            : 0.0;
+    final int reviewCount =
+        technicianViewModel.technicianData['reviewCount'] != null
+            ? (technicianViewModel.technicianData['reviewCount'] as num).toInt()
+            : 0;
+
+    return Row(
+      children: [
+        // Estrellas
+        Row(
+          children: List.generate(5, (index) {
+            return Icon(
+              index < rating ? Icons.star : Icons.star_border,
+              color: index < rating ? Colors.amber : Colors.grey,
+              size: 18,
+            );
+          }),
+        ),
+        const SizedBox(width: 4),
+        // Puntaje numérico y cantidad de reseñas
+        Text(
+          '${rating.toStringAsFixed(1)} ($reviewCount ${reviewCount == 1 ? 'reseña' : 'reseñas'})',
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+        ),
+      ],
     );
   }
 
@@ -569,30 +787,6 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
             ),
           ],
         ),
-
-        // Información de negocio (solo si es tipo negocio)
-        if (!viewModel.isIndividual) ...[
-          const SizedBox(height: 16),
-          _isEditing
-              ? CustomTextField(
-                controller: _businessNameController,
-                label: 'Nombre de la empresa',
-                prefixIcon: Icons.business,
-              )
-              : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Nombre de la empresa:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    viewModel.technicianData['businessName'] ??
-                        'No especificado',
-                  ),
-                ],
-              ),
-        ],
       ],
     );
   }
@@ -651,7 +845,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
             ),
             onBackgroundImageError: (exception, stackTrace) {
               // Si hay error al cargar la imagen, mostrar la letra
-              return;
+              print('Error al cargar imagen de perfil: $exception');
             },
           ),
           if (_isEditing)
@@ -712,4 +906,10 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
       ],
     );
   }
+}
+
+// Clase para ayudar con las imágenes en BusinessProfileCard
+class NetworkImageWithUrl {
+  final String url;
+  NetworkImageWithUrl(this.url);
 }

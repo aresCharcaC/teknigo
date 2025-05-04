@@ -2,12 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/constants/app_colors.dart';
 
 class LocationPickerScreen extends StatefulWidget {
   final LatLng? initialPosition;
+  final double coverageRadius;
 
-  const LocationPickerScreen({Key? key, this.initialPosition})
-    : super(key: key);
+  const LocationPickerScreen({
+    Key? key,
+    this.initialPosition,
+    this.coverageRadius = 10.0,
+  }) : super(key: key);
 
   @override
   _LocationPickerScreenState createState() => _LocationPickerScreenState();
@@ -29,6 +34,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   void initState() {
     super.initState();
     _selectedPosition = widget.initialPosition;
+    _coverageRadius = widget.coverageRadius;
     _updateMarkerAndCircle();
 
     if (_selectedPosition == null) {
@@ -187,7 +193,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Dirección seleccionada
-                  Text(
+                  const Text(
                     'Dirección:',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
@@ -201,7 +207,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   // Selector de radio de cobertura
                   Text(
                     'Radio de cobertura: ${_coverageRadius.toStringAsFixed(1)} km',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   Slider(
                     value: _coverageRadius,
@@ -209,6 +218,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     max: 50.0,
                     divisions: 49,
                     label: '${_coverageRadius.toStringAsFixed(1)} km',
+                    activeColor: AppColors.primary,
+                    inactiveColor: AppColors.primaryLight.withOpacity(0.3),
                     onChanged: (value) {
                       setState(() {
                         _coverageRadius = value;

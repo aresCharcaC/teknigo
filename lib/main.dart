@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'presentation/view_models/auth_view_model.dart';
 import 'presentation/view_models/search_view_model.dart';
 import 'presentation/view_models/profile_view_model.dart';
+import 'presentation/view_models/category_view_model.dart';
 import 'presentation/view_models/technician_view_model.dart';
 import 'presentation/view_models/service_request_view_model.dart';
 import 'presentation/view_models/chat_view_model.dart';
@@ -38,6 +39,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TechnicianViewModel()),
         ChangeNotifierProvider(create: (_) => ServiceRequestViewModel()),
         ChangeNotifierProvider(create: (_) => ChatViewModel()),
+        ChangeNotifierProvider(create: (_) => CategoryViewModel()),
+
         // Add more providers as you develop new features
       ],
       child: const MyApp(),

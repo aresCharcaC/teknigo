@@ -1,4 +1,8 @@
+// lib/presentation/screens/technician/components/categories_card.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../view_models/category_view_model.dart';
+import '../../../../core/models/category_model.dart';
 
 /// Widget de tarjeta para mostrar y editar las categorías del técnico
 class CategoriesCard extends StatefulWidget {
@@ -18,23 +22,6 @@ class CategoriesCard extends StatefulWidget {
 }
 
 class _CategoriesCardState extends State<CategoriesCard> {
-  // Lista de categorías disponibles
-  final List<CategoryItem> _availableCategories = [
-    CategoryItem(id: '1', name: 'Electricista'),
-    CategoryItem(id: '2', name: 'Técnico en Iluminación'),
-    CategoryItem(id: '3', name: 'Plomero'),
-    CategoryItem(id: '4', name: 'Técnico en Calefacción'),
-    CategoryItem(id: '5', name: 'Técnico PC'),
-    CategoryItem(id: '6', name: 'Reparador de Móviles'),
-    CategoryItem(id: '7', name: 'Técnico en Redes'),
-    CategoryItem(id: '8', name: 'Refrigeración'),
-    CategoryItem(id: '9', name: 'Técnico en Ventilación'),
-    CategoryItem(id: '10', name: 'Cerrajero'),
-    CategoryItem(id: '11', name: 'Técnico en Alarmas'),
-    CategoryItem(id: '12', name: 'Carpintero'),
-    // Aquí puedes añadir todas las categorías necesarias
-  ];
-
   // Alternar categoría seleccionada
   void _toggleCategory(String categoryId) {
     List<String> updatedCategories = List.from(widget.selectedCategories);
@@ -79,34 +66,45 @@ class _CategoriesCardState extends State<CategoriesCard> {
             const SizedBox(height: 12),
 
             // Lista de categorías seleccionadas
-            widget.selectedCategories.isEmpty
-                ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                  child: Center(
-                    child: Text(
-                      'No has seleccionado ninguna categoría',
-                      style: TextStyle(color: Colors.grey),
+            Consumer<CategoryViewModel>(
+              builder: (context, categoryViewModel, child) {
+                if (widget.selectedCategories.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: Center(
+                      child: Text(
+                        'No has seleccionado ninguna categoría',
+                        style: TextStyle(color: Colors.grey),
+                      ),
                     ),
-                  ),
-                )
-                : Wrap(
+                  );
+                }
+
+                return Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children:
                       widget.selectedCategories.map((categoryId) {
-                        // Encontrar el nombre de la categoría
-                        final category = _availableCategories.firstWhere(
-                          (c) => c.id == categoryId,
-                          orElse:
-                              () => CategoryItem(
-                                id: categoryId,
-                                name: 'Desconocida',
-                              ),
-                        );
+                        // Buscar la categoría en el listado completo
+                        final category = categoryViewModel.categories
+                            .firstWhere(
+                              (cat) => cat.id == categoryId,
+                              orElse:
+                                  () => CategoryModel(
+                                    id: categoryId,
+                                    name: 'Desconocida',
+                                    iconName: 'more_horiz',
+                                    iconColor: Colors.grey,
+                                    tags: [],
+                                    isActive: true,
+                                    createdAt: DateTime.now(),
+                                    updatedAt: DateTime.now(),
+                                  ),
+                            );
 
                         return Chip(
                           label: Text(category.name),
-                          backgroundColor: Colors.blue.shade50,
+                          backgroundColor: category.iconColor.withOpacity(0.2),
                           deleteIcon:
                               widget.isEditing
                                   ? const Icon(Icons.close, size: 16)
@@ -117,7 +115,9 @@ class _CategoriesCardState extends State<CategoriesCard> {
                                   : null,
                         );
                       }).toList(),
-                ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -134,20 +134,49 @@ class _CategoriesCardState extends State<CategoriesCard> {
             content: SizedBox(
               width: double.maxFinite,
               height: 400, // Altura fija para el diálogo
-              child: ListView.builder(
-                itemCount: _availableCategories.length,
-                itemBuilder: (context, index) {
-                  final category = _availableCategories[index];
-                  final isSelected = widget.selectedCategories.contains(
-                    category.id,
-                  );
+              child: Consumer<CategoryViewModel>(
+                builder: (context, categoryViewModel, child) {
+                  // Mostrar indicador de carga si las categorías aún se están cargando
+                  if (categoryViewModel.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                  return CheckboxListTile(
-                    title: Text(category.name),
-                    value: isSelected,
-                    onChanged: (value) {
-                      _toggleCategory(category.id);
-                      Navigator.pop(context);
+                  // Mostrar mensaje si no hay categorías
+                  if (categoryViewModel.categories.isEmpty) {
+                    return const Center(
+                      child: Text('No hay categorías disponibles'),
+                    );
+                  }
+
+                  // Mostrar la lista de categorías disponibles
+                  return ListView.builder(
+                    itemCount: categoryViewModel.categories.length,
+                    itemBuilder: (context, index) {
+                      final category = categoryViewModel.categories[index];
+                      final isSelected = widget.selectedCategories.contains(
+                        category.id,
+                      );
+
+                      return CheckboxListTile(
+                        title: Text(category.name),
+                        subtitle: Text(
+                          category.tags.isNotEmpty
+                              ? category.tags.join(', ')
+                              : 'Sin etiquetas',
+                        ),
+                        value: isSelected,
+                        secondary: CircleAvatar(
+                          backgroundColor: category.iconColor.withOpacity(0.2),
+                          child: Icon(
+                            category.getIcon(),
+                            color: category.iconColor,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          _toggleCategory(category.id);
+                          // No cerramos el diálogo para permitir seleccionar múltiples categorías
+                        },
+                      );
                     },
                   );
                 },
@@ -162,12 +191,4 @@ class _CategoriesCardState extends State<CategoriesCard> {
           ),
     );
   }
-}
-
-/// Modelo para categoría
-class CategoryItem {
-  final String id;
-  final String name;
-
-  CategoryItem({required this.id, required this.name});
 }
