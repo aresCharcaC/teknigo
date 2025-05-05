@@ -5,12 +5,15 @@ class SkillsCard extends StatefulWidget {
   final bool isEditing;
   final List<String> skills;
   final Function(List<String>) onUpdateSkills;
+  final bool
+  isIndividual; // Nuevo parámetro para diferenciar entre individual y negocio
 
   const SkillsCard({
     Key? key,
     required this.isEditing,
     required this.skills,
     required this.onUpdateSkills,
+    required this.isIndividual, // Añadir este parámetro
   }) : super(key: key);
 
   @override
@@ -26,12 +29,22 @@ class _SkillsCardState extends State<SkillsCard> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Agregar habilidad'),
+            title: Text(
+              widget.isIndividual
+                  ? 'Agregar habilidad especializada'
+                  : 'Agregar servicio ofrecido',
+            ),
             content: TextField(
               controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Habilidad o especialidad',
-                hintText: 'Ej: Instalación de redes wifi',
+              decoration: InputDecoration(
+                labelText:
+                    widget.isIndividual
+                        ? 'Habilidad o especialidad'
+                        : 'Servicio que ofrece',
+                hintText:
+                    widget.isIndividual
+                        ? 'Ej: Instalación de redes wifi'
+                        : 'Ej: Reparación de refrigeradores',
               ),
               textCapitalization: TextCapitalization.sentences,
             ),
@@ -66,6 +79,15 @@ class _SkillsCardState extends State<SkillsCard> {
 
   @override
   Widget build(BuildContext context) {
+    final title =
+        widget.isIndividual
+            ? 'Habilidades especializadas'
+            : 'Servicios ofrecidos';
+    final emptyMessage =
+        widget.isIndividual
+            ? 'No has agregado habilidades especializadas'
+            : 'No has agregado servicios ofrecidos';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 20),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -77,15 +99,21 @@ class _SkillsCardState extends State<SkillsCard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Habilidades adicionales',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 if (widget.isEditing)
                   IconButton(
                     icon: const Icon(Icons.add_circle, color: Colors.blue),
                     onPressed: _addSkill,
-                    tooltip: 'Agregar habilidad',
+                    tooltip:
+                        widget.isIndividual
+                            ? 'Agregar habilidad'
+                            : 'Agregar servicio',
                   ),
               ],
             ),
@@ -93,12 +121,12 @@ class _SkillsCardState extends State<SkillsCard> {
 
             // Lista de habilidades
             widget.skills.isEmpty
-                ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Center(
                     child: Text(
-                      'No has agregado habilidades adicionales',
-                      style: TextStyle(color: Colors.grey),
+                      emptyMessage,
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   ),
                 )

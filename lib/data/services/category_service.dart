@@ -1,3 +1,4 @@
+// lib/data/services/category_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/models/category_model.dart';
 import 'package:flutter/material.dart';
@@ -10,32 +11,35 @@ class CategoryService {
   String _colorToHex(Color color) =>
       '#${color.value.toRadixString(16).substring(2, 8)}';
 
-  // Obtener todas las categorías - CORREGIDO
+  // Obtener todas las categorías
   Stream<List<CategoryModel>> getCategoriesStream() {
     return _firestore
         .collection(_collection)
         .where('isActive', isEqualTo: true)
-        .orderBy('name') // Eliminado duplicado
+        .orderBy('name')
         .snapshots()
-        .map((snapshot) {
-          print('Documentos recibidos: ${snapshot.docs.length}');
-          return snapshot.docs
-              .map((doc) {
-                print('Procesando documento: ${doc.id}');
-                try {
-                  return CategoryModel.fromFirestore(doc);
-                } catch (e) {
-                  print('Error al convertir documento ${doc.id}: $e');
-                  return null;
-                }
-              })
-              .where((item) => item != null)
-              .cast<CategoryModel>()
-              .toList();
-        });
+        .map(_processCategoryDocs);
   }
 
-  // Obtener todas las categorías (una sola vez, no stream) - CORREGIDO
+  // Procesar documentos de categoría - método separado para reutilizar
+  List<CategoryModel> _processCategoryDocs(QuerySnapshot snapshot) {
+    print('Documentos recibidos: ${snapshot.docs.length}');
+    return snapshot.docs
+        .map((doc) {
+          print('Procesando documento: ${doc.id}');
+          try {
+            return CategoryModel.fromFirestore(doc);
+          } catch (e) {
+            print('Error al convertir documento ${doc.id}: $e');
+            return null;
+          }
+        })
+        .where((item) => item != null)
+        .cast<CategoryModel>()
+        .toList();
+  }
+
+  // Obtener todas las categorías (una sola vez, no stream)
   Future<List<CategoryModel>> getCategories() async {
     try {
       print('Obteniendo categorías...');
@@ -43,34 +47,17 @@ class CategoryService {
           await _firestore
               .collection(_collection)
               .where('isActive', isEqualTo: true)
-              .orderBy('name') // Eliminado duplicado
+              .orderBy('name')
               .get();
 
-      print('Documentos obtenidos: ${snapshot.docs.length}');
-
-      final categories =
-          snapshot.docs
-              .map((doc) {
-                try {
-                  return CategoryModel.fromFirestore(doc);
-                } catch (e) {
-                  print('Error al convertir documento ${doc.id}: $e');
-                  return null;
-                }
-              })
-              .where((item) => item != null)
-              .cast<CategoryModel>()
-              .toList();
-
-      print('Categorías convertidas: ${categories.length}');
-      return categories;
+      return _processCategoryDocs(snapshot);
     } catch (e) {
       print('Error al obtener categorías: $e');
       return [];
     }
   }
 
-  // Buscar categorías por nombre o tags - CORREGIDO
+  // Buscar categorías por nombre o tags
   Future<List<CategoryModel>> searchCategories(String query) async {
     query = query.toLowerCase().trim();
 
@@ -79,7 +66,6 @@ class CategoryService {
     }
 
     try {
-      // Búsqueda por nombre o tags (manualmente porque Firestore no permite OR)
       final snapshot =
           await _firestore
               .collection(_collection)
@@ -87,45 +73,46 @@ class CategoryService {
               .orderBy('name')
               .get();
 
-      final results =
-          snapshot.docs
-              .map((doc) {
-                try {
-                  return CategoryModel.fromFirestore(doc);
-                } catch (e) {
-                  print(
-                    'Error al convertir documento en búsqueda ${doc.id}: $e',
-                  );
-                  return null;
-                }
-              })
-              .where((category) => category != null)
-              .cast<CategoryModel>()
-              .where((category) {
-                // Verificar si el nombre contiene la consulta
-                if (category.name.toLowerCase().contains(query)) {
-                  return true;
-                }
-
-                // Verificar si algún tag contiene la consulta
-                for (final tag in category.tags) {
-                  if (tag.toLowerCase().contains(query)) {
-                    return true;
-                  }
-                }
-
-                return false;
-              })
-              .toList();
-
-      return results;
+      return _filterCategoriesByQuery(snapshot, query);
     } catch (e) {
       print('Error en searchCategories: $e');
       return [];
     }
   }
 
-  // El resto del código permanece igual...
+  // Filtrar categorías por consulta - método separado para mejor modularidad
+  List<CategoryModel> _filterCategoriesByQuery(
+    QuerySnapshot snapshot,
+    String query,
+  ) {
+    return snapshot.docs
+        .map((doc) {
+          try {
+            return CategoryModel.fromFirestore(doc);
+          } catch (e) {
+            print('Error al convertir documento en búsqueda ${doc.id}: $e');
+            return null;
+          }
+        })
+        .where((category) => category != null)
+        .cast<CategoryModel>()
+        .where((category) {
+          // Verificar si el nombre contiene la consulta
+          if (category.name.toLowerCase().contains(query)) {
+            return true;
+          }
+
+          // Verificar si algún tag contiene la consulta
+          for (final tag in category.tags) {
+            if (tag.toLowerCase().contains(query)) {
+              return true;
+            }
+          }
+
+          return false;
+        })
+        .toList();
+  }
 
   // Obtener una categoría por ID
   Future<CategoryModel?> getCategoryById(String id) async {
@@ -143,7 +130,9 @@ class CategoryService {
     }
   }
 
-  // Crear una nueva categoría - CORRECCIÓN DEL COLORHEX
+  // Métodos para operaciones CRUD
+
+  // Crear una nueva categoría
   Future<String> createCategory({
     required String name,
     String? description,
@@ -153,22 +142,16 @@ class CategoryService {
     required List<String> tags,
   }) async {
     try {
-      final hexColor = _colorToHex(iconColor);
-      print('Color convertido a hex: $hexColor');
+      final data = _prepareCategoryData(
+        name: name,
+        description: description,
+        iconUrl: iconUrl,
+        iconName: iconName,
+        iconColor: iconColor,
+        tags: tags,
+        isActive: true,
+      );
 
-      final data = {
-        'name': name,
-        'description': description,
-        'iconUrl': iconUrl,
-        'iconName': iconName,
-        'iconColor': hexColor,
-        'tags': tags,
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      print('Datos de categoría a guardar: $data');
       final docRef = await _firestore.collection(_collection).add(data);
       print('Categoría creada con ID: ${docRef.id}');
       return docRef.id;
@@ -178,7 +161,33 @@ class CategoryService {
     }
   }
 
-  // Actualizar una categoría existente - CORRECCIÓN DEL COLORHEX
+  // Preparar datos de categoría - método separado para reutilización
+  Map<String, dynamic> _prepareCategoryData({
+    required String name,
+    String? description,
+    String? iconUrl,
+    required String iconName,
+    required Color iconColor,
+    required List<String> tags,
+    required bool isActive,
+  }) {
+    final hexColor = _colorToHex(iconColor);
+    print('Color convertido a hex: $hexColor');
+
+    return {
+      'name': name,
+      'description': description,
+      'iconUrl': iconUrl,
+      'iconName': iconName,
+      'iconColor': hexColor,
+      'tags': tags,
+      'isActive': isActive,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  // Actualizar una categoría existente
   Future<void> updateCategory({
     required String id,
     required String name,
@@ -233,109 +242,83 @@ class CategoryService {
     }
   }
 
-  // Agregar categorías predeterminadas (para inicialización)
+  // Agregar categorías predeterminadas
   Future<void> addDefaultCategories() async {
     try {
       // Verificar si ya existen categorías
       final snapshot = await _firestore.collection(_collection).limit(1).get();
 
       if (snapshot.docs.isNotEmpty) {
-        // Ya existen categorías, no crear las predeterminadas
         print('Ya existen categorías, no se crearán las predeterminadas');
         return;
       }
 
-      // Lista de categorías predeterminadas
-      final List<Map<String, dynamic>> defaultCategories = [
-        {
-          'name': 'Electricista',
-          'description': 'Servicios de instalación y reparación eléctrica',
-          'iconName': 'electrical_services',
-          'iconColor': '#FFC107', // Amber
-          'tags': [
-            'electricidad',
-            'instalación',
-            'cableado',
-            'corto circuito',
-            'enchufes',
-            'luces',
-          ],
-        },
-        {
-          'name': 'Plomero',
-          'description': 'Servicios de plomería y fontanería',
-          'iconName': 'plumbing',
-          'iconColor': '#2196F3', // Blue
-          'tags': ['agua', 'tuberías', 'grifos', 'inodoro', 'ducha', 'fugas'],
-        },
-        {
-          'name': 'Técnico en PC',
-          'description': 'Reparación y mantenimiento de computadoras',
-          'iconName': 'computer',
-          'iconColor': '#4CAF50', // Green
-          'tags': [
-            'computadora',
-            'ordenador',
-            'laptop',
-            'software',
-            'virus',
-            'formateo',
-          ],
-        },
-        {
-          'name': 'Refrigeración',
-          'description': 'Servicio para aires acondicionados y refrigeradores',
-          'iconName': 'ac_unit',
-          'iconColor': '#00BCD4', // Cyan
-          'tags': [
-            'aire acondicionado',
-            'heladera',
-            'congelador',
-            'frío',
-            'climatización',
-          ],
-        },
-        {
-          'name': 'Cerrajero',
-          'description': 'Servicios de cerrajería y seguridad',
-          'iconName': 'key',
-          'iconColor': '#795548', // Brown
-          'tags': ['llaves', 'cerraduras', 'puertas', 'seguridad', 'candados'],
-        },
-        {
-          'name': 'Carpintero',
-          'description': 'Trabajos en madera y reparaciones',
-          'iconName': 'carpenter',
-          'iconColor': '#FF9800', // Orange
-          'tags': ['madera', 'muebles', 'puertas', 'armarios', 'reparación'],
-        },
-      ];
-
-      print('Creando categorías predeterminadas...');
-
-      // Crear batch para insertar todas las categorías de una vez
-      final batch = _firestore.batch();
-
-      for (final category in defaultCategories) {
-        final docRef = _firestore.collection(_collection).doc();
-
-        batch.set(docRef, {
-          'name': category['name'],
-          'description': category['description'],
-          'iconUrl': null,
-          'iconName': category['iconName'],
-          'iconColor': category['iconColor'],
-          'tags': category['tags'],
-          'isActive': true,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-
-      await batch.commit();
-      print('Categorías predeterminadas creadas con éxito');
+      await _createDefaultCategories();
     } catch (e) {
       print('Error al crear categorías predeterminadas: $e');
     }
+  }
+
+  // Crear categorías predeterminadas - extraído para mejorar legibilidad
+  Future<void> _createDefaultCategories() async {
+    print('Creando categorías predeterminadas...');
+
+    // Lista de categorías predeterminadas (se podría mover a un archivo de constants)
+    final List<Map<String, dynamic>> defaultCategories = [
+      _defaultCategory(
+        'Electricista',
+        'Servicios de instalación y reparación eléctrica',
+        'electrical_services',
+        '#FFC107',
+        [
+          'electricidad',
+          'instalación',
+          'cableado',
+          'corto circuito',
+          'enchufes',
+          'luces',
+        ],
+      ),
+      _defaultCategory(
+        'Plomero',
+        'Servicios de plomería y fontanería',
+        'plumbing',
+        '#2196F3',
+        ['agua', 'tuberías', 'grifos', 'inodoro', 'ducha', 'fugas'],
+      ),
+      // Resto de categorías...
+    ];
+
+    // Crear batch para insertar todas las categorías de una vez
+    final batch = _firestore.batch();
+
+    for (final category in defaultCategories) {
+      final docRef = _firestore.collection(_collection).doc();
+      batch.set(docRef, category);
+    }
+
+    await batch.commit();
+    print('Categorías predeterminadas creadas con éxito');
+  }
+
+  // Método para crear rápidamente un mapa de categoría predeterminada
+  Map<String, dynamic> _defaultCategory(
+    String name,
+    String description,
+    String iconName,
+    String iconColor,
+    List<String> tags,
+  ) {
+    return {
+      'name': name,
+      'description': description,
+      'iconUrl': null,
+      'iconName': iconName,
+      'iconColor': iconColor,
+      'tags': tags,
+      'isActive': true,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
   }
 }

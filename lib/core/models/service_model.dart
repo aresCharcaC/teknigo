@@ -1,25 +1,6 @@
+// lib/core/models/service_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-enum ServiceStatus {
-  pending, // Solicitud pendiente
-  offered, // Oferta enviada al cliente
-  accepted, // Oferta aceptada, servicio en curso
-  inProgress, // Técnico trabajando
-  completed, // Servicio completado
-  rated, // Servicio completado y calificado
-  cancelled, // Servicio cancelado
-  rejected, // Oferta rechazada
-}
-
-enum ServiceType {
-  immediate, // Servicio inmediato
-  scheduled, // Servicio programado
-}
-
-enum ServiceLocation {
-  clientHome, // A domicilio
-  techOffice, // En local del técnico
-}
+import '../enums/service_enums.dart';
 
 class ServiceModel {
   final String id;
@@ -79,32 +60,32 @@ class ServiceModel {
       categoryId: map['categoryId'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
-      status: ServiceStatus.values.firstWhere(
-        (e) => e.toString() == 'ServiceStatus.${map['status']}',
-        orElse: () => ServiceStatus.pending,
-      ),
-      type: ServiceType.values.firstWhere(
-        (e) => e.toString() == 'ServiceType.${map['type']}',
-        orElse: () => ServiceType.immediate,
-      ),
-      location: ServiceLocation.values.firstWhere(
-        (e) => e.toString() == 'ServiceLocation.${map['location']}',
-        orElse: () => ServiceLocation.clientHome,
-      ),
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      scheduledDate: (map['scheduledDate'] as Timestamp?)?.toDate(),
+      status: ServiceStatusExtension.fromString(map['status'] ?? ''),
+      type: ServiceTypeExtension.fromString(map['type'] ?? ''),
+      location: ServiceLocationExtension.fromString(map['location'] ?? ''),
+      createdAt: _parseTimestamp(map['createdAt']),
+      scheduledDate: _parseTimestamp(map['scheduledDate']),
       clientLocation: map['clientLocation'],
       clientAddress: map['clientAddress'] ?? '',
-      photos: map['photos'] != null ? List<String>.from(map['photos']) : null,
+      photos: _parseStringList(map['photos']),
       price: (map['price'] as num?)?.toDouble(),
       notes: map['notes'],
       clientRating: (map['clientRating'] as num?)?.toDouble(),
       clientReview: map['clientReview'],
       technicianRating: (map['technicianRating'] as num?)?.toDouble(),
       technicianReview: map['technicianReview'],
-      completedAt: (map['completedAt'] as Timestamp?)?.toDate(),
+      completedAt: _parseTimestamp(map['completedAt']),
       cancellationReason: map['cancellationReason'],
     );
+  }
+
+  // Métodos de ayuda para el parsing
+  static DateTime _parseTimestamp(dynamic timestamp) {
+    return (timestamp as Timestamp?)?.toDate() ?? DateTime.now();
+  }
+
+  static List<String>? _parseStringList(dynamic list) {
+    return list != null ? List<String>.from(list) : null;
   }
 
   // Convertir a un mapa (para guardar en Firestore)
@@ -115,10 +96,9 @@ class ServiceModel {
       'categoryId': categoryId,
       'title': title,
       'description': description,
-      'status':
-          status.toString().split('.').last, // Guardar solo el nombre del enum
-      'type': type.toString().split('.').last,
-      'location': location.toString().split('.').last,
+      'status': status.value,
+      'type': type.value,
+      'location': location.value,
       'createdAt': Timestamp.fromDate(createdAt),
       'scheduledDate':
           scheduledDate != null ? Timestamp.fromDate(scheduledDate!) : null,
@@ -177,19 +157,18 @@ class ServiceModel {
     );
   }
 
-  // Verificar si el servicio está activo
-  bool get isActive {
-    return status == ServiceStatus.pending ||
-        status == ServiceStatus.offered ||
-        status == ServiceStatus.accepted ||
-        status == ServiceStatus.inProgress;
-  }
+  // Getters para verificar estado
+  bool get isActive => [
+    ServiceStatus.pending,
+    ServiceStatus.offered,
+    ServiceStatus.accepted,
+    ServiceStatus.inProgress,
+  ].contains(status);
 
-  // Verificar si el servicio está finalizado (completado o cancelado)
-  bool get isFinished {
-    return status == ServiceStatus.completed ||
-        status == ServiceStatus.rated ||
-        status == ServiceStatus.cancelled ||
-        status == ServiceStatus.rejected;
-  }
+  bool get isFinished => [
+    ServiceStatus.completed,
+    ServiceStatus.rated,
+    ServiceStatus.cancelled,
+    ServiceStatus.rejected,
+  ].contains(status);
 }

@@ -7,9 +7,23 @@ class BusinessProfileCard extends StatelessWidget {
   final String businessName;
   final String businessDescription;
   final dynamic businessImage; // File o NetworkImageWithUrl o null
+  final String businessAddress;
+  final String businessPhone;
+  final String businessWebsite;
+  final String businessEmail;
+  final String businessHours;
+  final bool provideHomeService;
+  final bool provideOfficeService;
   final VoidCallback onPickImage;
   final Function(String) onBusinessNameChanged;
   final Function(String) onBusinessDescriptionChanged;
+  final Function(String) onBusinessAddressChanged;
+  final Function(String) onBusinessPhoneChanged;
+  final Function(String) onBusinessWebsiteChanged;
+  final Function(String) onBusinessEmailChanged;
+  final Function(String) onBusinessHoursChanged;
+  final Function(bool) onProvideHomeServiceChanged;
+  final Function(bool) onProvideOfficeServiceChanged;
 
   const BusinessProfileCard({
     Key? key,
@@ -17,9 +31,23 @@ class BusinessProfileCard extends StatelessWidget {
     required this.businessName,
     required this.businessDescription,
     this.businessImage,
+    required this.businessAddress,
+    required this.businessPhone,
+    required this.businessWebsite,
+    required this.businessEmail,
+    required this.businessHours,
+    required this.provideHomeService,
+    required this.provideOfficeService,
     required this.onPickImage,
     required this.onBusinessNameChanged,
     required this.onBusinessDescriptionChanged,
+    required this.onBusinessAddressChanged,
+    required this.onBusinessPhoneChanged,
+    required this.onBusinessWebsiteChanged,
+    required this.onBusinessEmailChanged,
+    required this.onBusinessHoursChanged,
+    required this.onProvideHomeServiceChanged,
+    required this.onProvideOfficeServiceChanged,
   }) : super(key: key);
 
   @override
@@ -137,6 +165,188 @@ class BusinessProfileCard extends StatelessWidget {
                     ),
                   ],
                 ),
+
+            const SizedBox(height: 16),
+
+            // Dirección adicional del negocio
+            isEditing
+                ? TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Dirección del negocio',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: businessAddress),
+                  onChanged: onBusinessAddressChanged,
+                )
+                : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Dirección del negocio',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      businessAddress.isEmpty
+                          ? 'No especificada'
+                          : businessAddress,
+                    ),
+                  ],
+                ),
+
+            const SizedBox(height: 16),
+
+            // Horario de atención
+            isEditing
+                ? TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Horario de atención',
+                    hintText: 'Ej: Lunes a Viernes 9:00 - 18:00',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: businessHours),
+                  onChanged: onBusinessHoursChanged,
+                )
+                : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Horario de atención',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      businessHours.isEmpty ? 'No especificado' : businessHours,
+                    ),
+                  ],
+                ),
+
+            const SizedBox(height: 16),
+
+            // Teléfono del negocio
+            isEditing
+                ? TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Teléfono del negocio',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: businessPhone),
+                  keyboardType: TextInputType.phone,
+                  onChanged: onBusinessPhoneChanged,
+                )
+                : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Teléfono del negocio',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      businessPhone.isEmpty ? 'No especificado' : businessPhone,
+                    ),
+                  ],
+                ),
+
+            const SizedBox(height: 16),
+
+            // Email del negocio
+            isEditing
+                ? TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Email del negocio',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: businessEmail),
+                  keyboardType: TextInputType.emailAddress,
+                  onChanged: onBusinessEmailChanged,
+                )
+                : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Email del negocio',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      businessEmail.isEmpty ? 'No especificado' : businessEmail,
+                    ),
+                  ],
+                ),
+
+            const SizedBox(height: 16),
+
+            // Sitio web del negocio
+            isEditing
+                ? TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Sitio web o redes sociales',
+                    hintText: 'www.ejemplo.com o @nombre_instagram',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: businessWebsite),
+                  onChanged: onBusinessWebsiteChanged,
+                )
+                : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Sitio web o redes sociales',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      businessWebsite.isEmpty
+                          ? 'No especificado'
+                          : businessWebsite,
+                    ),
+                  ],
+                ),
+
+            const SizedBox(height: 16),
+
+            // Tipo de servicio
+            const Text(
+              'Tipo de servicio',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 8),
+
+            // Servicio a domicilio
+            SwitchListTile(
+              title: const Text('Servicio a domicilio'),
+              subtitle: const Text('Atención en el domicilio del cliente'),
+              value: provideHomeService,
+              onChanged: isEditing ? onProvideHomeServiceChanged : null,
+              dense: true,
+              activeColor: Colors.green,
+            ),
+
+            // Servicio en local
+            SwitchListTile(
+              title: const Text('Servicio en local'),
+              subtitle: const Text('Atención en la dirección del negocio'),
+              value: provideOfficeService,
+              onChanged: isEditing ? onProvideOfficeServiceChanged : null,
+              dense: true,
+              activeColor: Colors.green,
+            ),
           ],
         ),
       ),

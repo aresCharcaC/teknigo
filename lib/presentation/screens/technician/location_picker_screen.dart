@@ -117,15 +117,29 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           IconButton(
             icon: const Icon(Icons.check),
             onPressed:
-                _selectedPosition == null
+                _selectedPosition == null || _selectedAddress == null
                     ? null
                     : () {
-                      // Devolver la ubicación seleccionada
-                      Navigator.pop(context, {
-                        'position': _selectedPosition,
-                        'address': _selectedAddress,
-                        'coverageRadius': _coverageRadius,
-                      });
+                      // Verificar que tenemos la dirección antes de devolver el resultado
+                      if (_selectedAddress != null &&
+                          _selectedAddress!.isNotEmpty) {
+                        // Devolver la ubicación seleccionada con dirección
+                        Navigator.pop(context, {
+                          'position': _selectedPosition,
+                          'address': _selectedAddress,
+                          'coverageRadius': _coverageRadius,
+                        });
+                      } else {
+                        // Mostrar error si no hay dirección
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'No se pudo obtener la dirección. Intenta seleccionar otra ubicación.',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     },
             tooltip: 'Confirmar ubicación',
           ),
@@ -199,7 +213,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   ),
                   const SizedBox(height: 4),
                   _isLoading
-                      ? const CircularProgressIndicator()
+                      ? const LinearProgressIndicator()
                       : Text(_selectedAddress ?? 'Dirección no disponible'),
 
                   const SizedBox(height: 16),
@@ -218,12 +232,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     max: 50.0,
                     divisions: 49,
                     label: '${_coverageRadius.toStringAsFixed(1)} km',
-                    activeColor: AppColors.primary,
-                    inactiveColor: AppColors.primaryLight.withOpacity(0.3),
+                    activeColor: Colors.blue,
+                    inactiveColor: Colors.blue.withOpacity(0.3),
                     onChanged: (value) {
                       setState(() {
                         _coverageRadius = value;
-                        _updateMarkerAndCircle();
                       });
                     },
                   ),

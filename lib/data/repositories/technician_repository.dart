@@ -254,6 +254,7 @@ class TechnicianRepository {
           .doc(user.uid)
           .update(locationData);
 
+      print('Ubicación actualizada correctamente: $address');
       return true;
     } catch (e) {
       print('Error al actualizar ubicación: $e');

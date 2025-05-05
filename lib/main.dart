@@ -1,3 +1,5 @@
+// lib/main.dart
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,23 +15,23 @@ import 'presentation/view_models/chat_view_model.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
-  // Ensure Flutter widgets are initialized
+  // Asegurar que los widgets de Flutter estén inicializados
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with configured options
+  // Inicializar Firebase con las opciones configuradas
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Initialize Firebase AppCheck
+  // Inicializar Firebase AppCheck
   await FirebaseAppCheck.instance.activate(
-    // For debug testing, use this:
-    //webRecaptchaSiteKey: 'recaptcha-v3-site-key',
-    // For Android debug, use debug provider
+    // Para pruebas de depuración, usa esto:
+    // webRecaptchaSiteKey: 'recaptcha-v3-site-key',
+    // Para Android en depuración, usa el proveedor de depuración
     androidProvider: AndroidProvider.debug,
-    // For iOS, use DeviceCheck or AppAttest as appropriate
+    // Para iOS, usa DeviceCheck o AppAttest según corresponda
     appleProvider: AppleProvider.deviceCheck,
   );
 
-  // Run the app with MultiProvider for state management
+  // Ejecutar la aplicación con MultiProvider para gestión de estado
   runApp(
     MultiProvider(
       providers: [
@@ -40,8 +42,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ServiceRequestViewModel()),
         ChangeNotifierProvider(create: (_) => ChatViewModel()),
         ChangeNotifierProvider(create: (_) => CategoryViewModel()),
-
-        // Add more providers as you develop new features
+        // Agregar más providers a medida que desarrolles nuevas funciones
       ],
       child: const MyApp(),
     ),

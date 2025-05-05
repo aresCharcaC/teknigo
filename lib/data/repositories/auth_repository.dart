@@ -132,33 +132,31 @@ class AuthRepository {
             });
       } else {
         // Verificar si existe el documento en Firestore
-        final userDoc =
-            await _firestore
-                .collection(AppConstants.usersCollection)
-                .doc(userCredential.user!.uid)
-                .get();
+        await _firestore.runTransaction((transaction) async {
+          final docRef = _firestore
+              .collection(AppConstants.usersCollection)
+              .doc(userCredential.user!.uid);
 
-        if (userDoc.exists) {
-          // Actualizar fecha de último inicio de sesión
-          await _firestore
-              .collection(AppConstants.usersCollection)
-              .doc(userCredential.user!.uid)
-              .update({'lastLogin': FieldValue.serverTimestamp()});
-        } else {
-          // Crear documento si no existe
-          await _firestore
-              .collection(AppConstants.usersCollection)
-              .doc(userCredential.user!.uid)
-              .set({
-                'name': userCredential.user!.displayName ?? 'Usuario',
-                'email': userCredential.user!.email ?? '',
-                'userType': AppConstants.userTypeRegular,
-                'createdAt': FieldValue.serverTimestamp(),
-                'lastLogin': FieldValue.serverTimestamp(),
-                'authProvider': 'google',
-                'photoURL': userCredential.user!.photoURL,
-              });
-        }
+          final userDoc = await transaction.get(docRef);
+
+          if (userDoc.exists) {
+            // Actualizar en la misma transacción
+            transaction.update(docRef, {
+              'lastLogin': FieldValue.serverTimestamp(),
+            });
+          } else {
+            // Crear en la misma transacción
+            transaction.set(docRef, {
+              'name': userCredential.user!.displayName ?? 'Usuario',
+              'email': userCredential.user!.email ?? '',
+              'userType': AppConstants.userTypeRegular,
+              'createdAt': FieldValue.serverTimestamp(),
+              'lastLogin': FieldValue.serverTimestamp(),
+              'authProvider': 'google',
+              'photoURL': userCredential.user!.photoURL,
+            });
+          }
+        });
       }
 
       return userCredential;

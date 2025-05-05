@@ -1,14 +1,13 @@
-// lib/presentation/view_models/technician_view_model.dart
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/models/working_hours.dart';
+import '../../core/models/social_link.dart';
 import '../../data/repositories/technician_repository.dart';
 import '../common/base_view_model.dart';
 import '../common/resource.dart';
 
-/// ViewModel para gestionar el perfil y datos del técnico
 class TechnicianViewModel extends BaseViewModel {
   final TechnicianRepository _repository = TechnicianRepository();
 
@@ -33,6 +32,13 @@ class TechnicianViewModel extends BaseViewModel {
   File? _businessImageFile;
   File? get businessImageFile => _businessImageFile;
 
+  // Tipo de servicio
+  bool _serviceAtHome = true;
+  bool get serviceAtHome => _serviceAtHome;
+
+  bool _serviceAtOffice = false;
+  bool get serviceAtOffice => _serviceAtOffice;
+
   // Ubicación
   LatLng? _location;
   LatLng? get location => _location;
@@ -51,6 +57,13 @@ class TechnicianViewModel extends BaseViewModel {
   List<String> _skills = [];
   List<String> get skills => _skills;
 
+  List<SocialLink> _socialLinks = [];
+  List<SocialLink> get socialLinks => _socialLinks;
+
+  // Horario de trabajo
+  List<WorkingHours> _workingHours = [];
+  List<WorkingHours> get workingHours => _workingHours;
+
   // Cargar datos del técnico
   Future<void> loadTechnicianProfile() async {
     return executeAsync<void>(() async {
@@ -60,6 +73,8 @@ class TechnicianViewModel extends BaseViewModel {
         _isIndividual = data['isIndividual'] ?? true;
         _isServicesActive = data['isServicesActive'] ?? false;
         _isAvailable = data['isAvailable'] ?? true;
+        _serviceAtHome = data['serviceAtHome'] ?? true;
+        _serviceAtOffice = data['serviceAtOffice'] ?? false;
 
         // Extraer ubicación
         if (data['location'] != null) {
@@ -96,8 +111,63 @@ class TechnicianViewModel extends BaseViewModel {
         if (data['skills'] != null && data['skills'] is List) {
           _skills = List<String>.from(data['skills']);
         }
+
+        // Extraer redes sociales
+        if (data['socialLinks'] != null && data['socialLinks'] is List) {
+          try {
+            _socialLinks =
+                (data['socialLinks'] as List)
+                    .map(
+                      (item) =>
+                          SocialLink.fromMap(Map<String, dynamic>.from(item)),
+                    )
+                    .toList();
+          } catch (e) {
+            _socialLinks = [];
+          }
+        }
+
+        // Extraer horario de trabajo
+        if (data['workingHours'] != null && data['workingHours'] is List) {
+          try {
+            _workingHours =
+                (data['workingHours'] as List)
+                    .map(
+                      (item) =>
+                          WorkingHours.fromMap(Map<String, dynamic>.from(item)),
+                    )
+                    .toList();
+          } catch (e) {
+            // Si hay error, inicializar horario por defecto
+            _initDefaultWorkingHours();
+          }
+        } else {
+          // Crear horario por defecto si no existe
+          _initDefaultWorkingHours();
+        }
       }
     });
+  }
+
+  // Inicializar horario de trabajo por defecto
+  void _initDefaultWorkingHours() {
+    _workingHours = [
+      WorkingHours(day: 'Lunes', timeRange: '8:00 - 18:00', isAvailable: true),
+      WorkingHours(day: 'Martes', timeRange: '8:00 - 18:00', isAvailable: true),
+      WorkingHours(
+        day: 'Miércoles',
+        timeRange: '8:00 - 18:00',
+        isAvailable: true,
+      ),
+      WorkingHours(day: 'Jueves', timeRange: '8:00 - 18:00', isAvailable: true),
+      WorkingHours(
+        day: 'Viernes',
+        timeRange: '8:00 - 18:00',
+        isAvailable: true,
+      ),
+      WorkingHours(day: 'Sábado', timeRange: '9:00 - 13:00', isAvailable: true),
+      WorkingHours(day: 'Domingo', timeRange: '', isAvailable: false),
+    ];
   }
 
   // Actualizar perfil de técnico
@@ -106,6 +176,23 @@ class TechnicianViewModel extends BaseViewModel {
   ) async {
     try {
       setLoading();
+
+      // Convertir horarios a Map si corresponde
+      if (data.containsKey('workingHours') &&
+          data['workingHours'] is List<WorkingHours>) {
+        data['workingHours'] =
+            (data['workingHours'] as List<WorkingHours>)
+                .map((h) => h.toMap())
+                .toList();
+      }
+
+      // Añadir campos adicionales
+      if (!data.containsKey('serviceAtHome')) {
+        data['serviceAtHome'] = _serviceAtHome;
+      }
+      if (!data.containsKey('serviceAtOffice')) {
+        data['serviceAtOffice'] = _serviceAtOffice;
+      }
 
       final success = await _repository.updateTechnicianProfile(data);
 
@@ -122,6 +209,12 @@ class TechnicianViewModel extends BaseViewModel {
         }
         if (data.containsKey('isAvailable')) {
           _isAvailable = data['isAvailable'];
+        }
+        if (data.containsKey('serviceAtHome')) {
+          _serviceAtHome = data['serviceAtHome'];
+        }
+        if (data.containsKey('serviceAtOffice')) {
+          _serviceAtOffice = data['serviceAtOffice'];
         }
         if (data.containsKey('categories')) {
           _selectedCategories = List<String>.from(data['categories']);
@@ -249,19 +342,25 @@ class TechnicianViewModel extends BaseViewModel {
     try {
       setLoading();
 
+      // Actualizar primero los datos locales para evitar problemas de sincronización
+      _location = location;
+      _address = address;
+      _coverageRadius = radius;
+
+      // Actualizar también en technicianData
+      _technicianData['location'] = {
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+      };
+      _technicianData['address'] = address;
+      _technicianData['coverageRadius'] = radius;
+
+      // Luego enviar al repositorio
       final success = await _repository.updateLocation(
         location,
         address,
         radius,
       );
-
-      if (success) {
-        _location = location;
-        _address = address;
-        _coverageRadius = radius;
-        _technicianData['address'] = address;
-        _technicianData['coverageRadius'] = radius;
-      }
 
       setLoaded();
       return Resource.success(success);
@@ -284,6 +383,12 @@ class TechnicianViewModel extends BaseViewModel {
     notifyListeners();
   }
 
+  // Actualizar redes sociales
+  void updateSocialLinks(List<SocialLink> links) {
+    _socialLinks = links;
+    notifyListeners();
+  }
+
   // Actualizar tipo de técnico (individual o empresa)
   void updateTechnicianType(bool isIndividual) {
     _isIndividual = isIndividual;
@@ -300,5 +405,31 @@ class TechnicianViewModel extends BaseViewModel {
   void updateServicesActive(bool isActive) {
     _isServicesActive = isActive;
     notifyListeners();
+  }
+
+  // Activar/desactivar servicio a domicilio
+  void toggleServiceAtHome(bool value) {
+    _serviceAtHome = value;
+    notifyListeners();
+  }
+
+  // Activar/desactivar servicio en local
+  void toggleServiceAtOffice(bool value) {
+    _serviceAtOffice = value;
+    notifyListeners();
+  }
+
+  // Actualizar horario de trabajo
+  void updateWorkingHours(List<WorkingHours> hours) {
+    _workingHours = hours;
+    notifyListeners();
+  }
+
+  // Actualizar un día específico del horario
+  void updateWorkingDay(int index, WorkingHours updatedDay) {
+    if (index >= 0 && index < _workingHours.length) {
+      _workingHours[index] = updatedDay;
+      notifyListeners();
+    }
   }
 }
