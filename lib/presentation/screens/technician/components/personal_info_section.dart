@@ -9,27 +9,23 @@ class PersonalInfoSection extends StatelessWidget {
   final bool isIndividual;
   final Map<String, dynamic> userData;
   final bool isEditing;
+  final TextEditingController descriptionController;
+  final TextEditingController experienceController;
+  final TextEditingController businessNameController;
+  final TextEditingController businessDescriptionController;
   final Function(File) onImageSelected;
 
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _experienceController = TextEditingController();
-  final TextEditingController _businessNameController = TextEditingController();
-  final TextEditingController _businessDescriptionController =
-      TextEditingController();
-
-  PersonalInfoSection({
+  const PersonalInfoSection({
     Key? key,
     required this.isIndividual,
     required this.userData,
     required this.isEditing,
+    required this.descriptionController,
+    required this.experienceController,
+    required this.businessNameController,
+    required this.businessDescriptionController,
     required this.onImageSelected,
-  }) : super(key: key) {
-    // Inicializar controladores con datos existentes
-    _descriptionController.text = userData['description'] ?? '';
-    _experienceController.text = userData['experience'] ?? '';
-    _businessNameController.text = userData['businessName'] ?? '';
-    _businessDescriptionController.text = userData['businessDescription'] ?? '';
-  }
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +47,7 @@ class PersonalInfoSection extends StatelessWidget {
         // Descripción personal
         isEditing
             ? CustomTextField(
-              controller: _descriptionController,
+              controller: descriptionController,
               label: 'Descripción profesional',
               prefixIcon: Icons.description,
               maxLines: 3,
@@ -65,12 +61,12 @@ class PersonalInfoSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _descriptionController.text.isNotEmpty
-                      ? _descriptionController.text
+                  descriptionController.text.isNotEmpty
+                      ? descriptionController.text
                       : 'Sin descripción',
                   style: TextStyle(
                     color:
-                        _descriptionController.text.isEmpty
+                        descriptionController.text.isEmpty
                             ? Colors.grey
                             : Colors.black,
                   ),
@@ -83,7 +79,7 @@ class PersonalInfoSection extends StatelessWidget {
         // Experiencia
         isEditing
             ? CustomTextField(
-              controller: _experienceController,
+              controller: experienceController,
               label: 'Experiencia',
               prefixIcon: Icons.work,
             )
@@ -96,12 +92,12 @@ class PersonalInfoSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _experienceController.text.isNotEmpty
-                      ? _experienceController.text
+                  experienceController.text.isNotEmpty
+                      ? experienceController.text
                       : 'Sin información de experiencia',
                   style: TextStyle(
                     color:
-                        _experienceController.text.isEmpty
+                        experienceController.text.isEmpty
                             ? Colors.grey
                             : Colors.black,
                   ),
@@ -119,7 +115,7 @@ class PersonalInfoSection extends StatelessWidget {
         // Nombre de empresa
         isEditing
             ? CustomTextField(
-              controller: _businessNameController,
+              controller: businessNameController,
               label: 'Nombre de la empresa',
               prefixIcon: Icons.business,
             )
@@ -132,14 +128,14 @@ class PersonalInfoSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _businessNameController.text.isNotEmpty
-                      ? _businessNameController.text
+                  businessNameController.text.isNotEmpty
+                      ? businessNameController.text
                       : 'Sin nombre de empresa',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color:
-                        _businessNameController.text.isEmpty
+                        businessNameController.text.isEmpty
                             ? Colors.grey
                             : Colors.black,
                   ),
@@ -152,7 +148,7 @@ class PersonalInfoSection extends StatelessWidget {
         // Descripción de la empresa
         isEditing
             ? CustomTextField(
-              controller: _businessDescriptionController,
+              controller: businessDescriptionController,
               label: 'Descripción de la empresa',
               prefixIcon: Icons.description,
               maxLines: 3,
@@ -166,12 +162,12 @@ class PersonalInfoSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _businessDescriptionController.text.isNotEmpty
-                      ? _businessDescriptionController.text
+                  businessDescriptionController.text.isNotEmpty
+                      ? businessDescriptionController.text
                       : 'Sin descripción de empresa',
                   style: TextStyle(
                     color:
-                        _businessDescriptionController.text.isEmpty
+                        businessDescriptionController.text.isEmpty
                             ? Colors.grey
                             : Colors.black,
                   ),
@@ -261,7 +257,7 @@ class PersonalInfoSection extends StatelessWidget {
   }
 
   // Método para seleccionar imagen
-  void _pickImage(BuildContext context) {
+  void _pickImage(BuildContext context) async {
     showModalBottomSheet(
       context: context,
       builder:
@@ -272,17 +268,27 @@ class PersonalInfoSection extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.photo_camera),
                   title: const Text('Tomar foto'),
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(context);
-                    // Implementar toma de foto
+                    // Implementar la funcionalidad de tomar foto aquí
+                    // Por ejemplo:
+                    // final image = await ImagePicker().pickImage(source: ImageSource.camera);
+                    // if (image != null) {
+                    //   onImageSelected(File(image.path));
+                    // }
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_library),
                   title: const Text('Seleccionar de galería'),
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(context);
-                    // Implementar selección de galería
+                    // Implementar la funcionalidad de seleccionar desde galería aquí
+                    // Por ejemplo:
+                    // final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+                    // if (image != null) {
+                    //   onImageSelected(File(image.path));
+                    // }
                   },
                 ),
               ],

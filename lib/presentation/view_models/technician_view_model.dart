@@ -1,3 +1,5 @@
+// lib/presentation/view_models/technician_view_model.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -78,22 +80,27 @@ class TechnicianViewModel extends BaseViewModel {
 
         // Extraer ubicación
         if (data['location'] != null) {
-          final locationData = data['location'];
-          if (locationData is Map<String, dynamic>) {
-            // Si location viene como un Map
-            if (locationData.containsKey('latitude') &&
-                locationData.containsKey('longitude')) {
-              _location = LatLng(
-                locationData['latitude'] as double,
-                locationData['longitude'] as double,
-              );
+          // Si location es un GeoPoint de Firestore
+          try {
+            if (data['location'] is Map) {
+              final double lat =
+                  data['location']['latitude'] is num
+                      ? (data['location']['latitude'] as num).toDouble()
+                      : 0.0;
+              final double lng =
+                  data['location']['longitude'] is num
+                      ? (data['location']['longitude'] as num).toDouble()
+                      : 0.0;
+              _location = LatLng(lat, lng);
+            } else if (data['location'].toString().contains('GeoPoint')) {
+              // Si es un GeoPoint directamente
+              final lat = data['location'].latitude;
+              final lng = data['location'].longitude;
+              _location = LatLng(lat, lng);
             }
-          } else if (locationData.runtimeType.toString() == 'GeoPoint') {
-            // Si es un GeoPoint de Firestore
-            _location = LatLng(
-              (locationData as dynamic).latitude as double,
-              (locationData as dynamic).longitude as double,
-            );
+          } catch (e) {
+            print('Error extracting location: $e');
+            _location = null;
           }
         }
 
@@ -105,11 +112,15 @@ class TechnicianViewModel extends BaseViewModel {
         // Extraer categorías
         if (data['categories'] != null && data['categories'] is List) {
           _selectedCategories = List<String>.from(data['categories']);
+        } else {
+          _selectedCategories = [];
         }
 
         // Extraer habilidades
         if (data['skills'] != null && data['skills'] is List) {
           _skills = List<String>.from(data['skills']);
+        } else {
+          _skills = [];
         }
 
         // Extraer redes sociales
@@ -123,8 +134,11 @@ class TechnicianViewModel extends BaseViewModel {
                     )
                     .toList();
           } catch (e) {
+            print('Error extracting social links: $e');
             _socialLinks = [];
           }
+        } else {
+          _socialLinks = [];
         }
 
         // Extraer horario de trabajo
@@ -138,11 +152,10 @@ class TechnicianViewModel extends BaseViewModel {
                     )
                     .toList();
           } catch (e) {
-            // Si hay error, inicializar horario por defecto
+            print('Error extracting working hours: $e');
             _initDefaultWorkingHours();
           }
         } else {
-          // Crear horario por defecto si no existe
           _initDefaultWorkingHours();
         }
       }
@@ -347,7 +360,7 @@ class TechnicianViewModel extends BaseViewModel {
       _address = address;
       _coverageRadius = radius;
 
-      // Actualizar también en technicianData
+      // Actualizar también en technicianData (mantenemos el formato como Map por consistencia)
       _technicianData['location'] = {
         'latitude': location.latitude,
         'longitude': location.longitude,

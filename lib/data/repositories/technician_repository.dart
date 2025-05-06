@@ -17,7 +17,10 @@ class TechnicianRepository {
   Future<Map<String, dynamic>?> getTechnicianProfile() async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return null;
+      if (user == null) {
+        print('No hay usuario autenticado');
+        return null;
+      }
 
       final docRef = _firestore
           .collection(AppConstants.techniciansCollection)
@@ -25,9 +28,12 @@ class TechnicianRepository {
       final doc = await docRef.get();
 
       if (doc.exists) {
+        // Si el perfil ya existe, devolver los datos
+        print('Perfil de técnico encontrado');
         return doc.data();
       } else {
         // Si no existe el perfil, obtener datos básicos del usuario
+        print('Creando perfil de técnico nuevo');
         final userDoc =
             await _firestore
                 .collection(AppConstants.usersCollection)
@@ -90,6 +96,7 @@ class TechnicianRepository {
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
+        print('Perfil mínimo creado');
         return minProfile;
       }
     } catch (e) {
@@ -102,10 +109,26 @@ class TechnicianRepository {
   Future<bool> updateTechnicianProfile(Map<String, dynamic> data) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        print('No hay usuario autenticado para actualizar perfil');
+        return false;
+      }
 
       // Añadir timestamp de actualización
       data['updatedAt'] = FieldValue.serverTimestamp();
+
+      // Manejar location si está presente pero en formato LatLng
+      if (data.containsKey('location') &&
+          data['location'] is Map<String, dynamic>) {
+        final locationMap = data['location'] as Map<String, dynamic>;
+        if (locationMap.containsKey('latitude') &&
+            locationMap.containsKey('longitude')) {
+          data['location'] = GeoPoint(
+            locationMap['latitude'] as double,
+            locationMap['longitude'] as double,
+          );
+        }
+      }
 
       // Actualizar documento
       await _firestore
@@ -113,6 +136,7 @@ class TechnicianRepository {
           .doc(user.uid)
           .update(data);
 
+      print('Perfil de técnico actualizado correctamente');
       return true;
     } catch (e) {
       print('Error al actualizar perfil técnico: $e');
@@ -124,7 +148,10 @@ class TechnicianRepository {
   Future<String?> uploadProfileImage(File imageFile) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return null;
+      if (user == null) {
+        print('No hay usuario autenticado para subir imagen');
+        return null;
+      }
 
       // Subir imagen a Storage
       final url = await _storageService.uploadImage(
@@ -136,6 +163,7 @@ class TechnicianRepository {
       // Si la subida fue exitosa, actualizar el perfil
       if (url != null) {
         await updateTechnicianProfile({'profileImage': url});
+        print('Imagen de perfil subida y actualizada: $url');
       }
 
       return url;
@@ -149,7 +177,10 @@ class TechnicianRepository {
   Future<bool> removeProfileImage() async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        print('No hay usuario autenticado para eliminar imagen');
+        return false;
+      }
 
       // Obtener perfil actual para conseguir la URL de la imagen
       final docRef = _firestore
@@ -161,14 +192,23 @@ class TechnicianRepository {
         final profileImageUrl = doc.data()!['profileImage'];
 
         if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
-          // Eliminar imagen de Storage
-          await _storageService.deleteImageByUrl(profileImageUrl);
+          try {
+            // Eliminar imagen de Storage
+            await _storageService.deleteImageByUrl(profileImageUrl);
 
-          // Actualizar perfil
-          await updateTechnicianProfile({'profileImage': null});
-          return true;
+            // Actualizar perfil
+            await updateTechnicianProfile({'profileImage': null});
+            print('Imagen de perfil eliminada correctamente');
+            return true;
+          } catch (e) {
+            print('Error al eliminar imagen de Storage: $e');
+            // Aún así, actualizamos el perfil para quitar la referencia
+            await updateTechnicianProfile({'profileImage': null});
+            return true;
+          }
         }
       }
+      print('No se encontró imagen de perfil para eliminar');
       return false;
     } catch (e) {
       print('Error al eliminar imagen de perfil: $e');
@@ -180,7 +220,10 @@ class TechnicianRepository {
   Future<String?> uploadBusinessImage(File imageFile) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return null;
+      if (user == null) {
+        print('No hay usuario autenticado para subir imagen');
+        return null;
+      }
 
       // Subir imagen a Storage
       final url = await _storageService.uploadImage(
@@ -192,6 +235,7 @@ class TechnicianRepository {
       // Si la subida fue exitosa, actualizar el perfil
       if (url != null) {
         await updateTechnicianProfile({'businessImage': url});
+        print('Imagen de negocio subida y actualizada: $url');
       }
 
       return url;
@@ -205,7 +249,10 @@ class TechnicianRepository {
   Future<bool> removeBusinessImage() async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        print('No hay usuario autenticado para eliminar imagen');
+        return false;
+      }
 
       // Obtener perfil actual para conseguir la URL de la imagen
       final docRef = _firestore
@@ -217,14 +264,23 @@ class TechnicianRepository {
         final businessImageUrl = doc.data()!['businessImage'];
 
         if (businessImageUrl != null && businessImageUrl.isNotEmpty) {
-          // Eliminar imagen de Storage
-          await _storageService.deleteImageByUrl(businessImageUrl);
+          try {
+            // Eliminar imagen de Storage
+            await _storageService.deleteImageByUrl(businessImageUrl);
 
-          // Actualizar perfil
-          await updateTechnicianProfile({'businessImage': null});
-          return true;
+            // Actualizar perfil
+            await updateTechnicianProfile({'businessImage': null});
+            print('Imagen de negocio eliminada correctamente');
+            return true;
+          } catch (e) {
+            print('Error al eliminar imagen de Storage: $e');
+            // Aún así, actualizamos el perfil para quitar la referencia
+            await updateTechnicianProfile({'businessImage': null});
+            return true;
+          }
         }
       }
+      print('No se encontró imagen de negocio para eliminar');
       return false;
     } catch (e) {
       print('Error al eliminar imagen de negocio: $e');
@@ -240,8 +296,12 @@ class TechnicianRepository {
   ) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        print('No hay usuario autenticado para actualizar ubicación');
+        return false;
+      }
 
+      // Convertir a GeoPoint para Firestore
       final locationData = {
         'location': GeoPoint(location.latitude, location.longitude),
         'address': address,

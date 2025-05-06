@@ -38,6 +38,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   bool _isEditing = false;
   File? _profileImageFile;
   File? _businessImageFile;
+  bool _controllersInitialized = false;
 
   @override
   void initState() {
@@ -49,7 +50,9 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
         context,
         listen: false,
       );
-      technicianViewModel.loadTechnicianProfile();
+      technicianViewModel.loadTechnicianProfile().then((_) {
+        _updateControllersFromViewModel(technicianViewModel);
+      });
 
       // Cargar categorías
       Provider.of<CategoryViewModel>(context, listen: false).loadCategories();
@@ -58,6 +61,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
 
   @override
   void dispose() {
+    // Liberar los controladores al destruir el widget
     _nameController.dispose();
     _phoneController.dispose();
     _descriptionController.dispose();
@@ -68,18 +72,22 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   }
 
   // Método para actualizar controladores cuando se carguen los datos
-  void _updateControllers(TechnicianViewModel viewModel) {
-    if (!_isEditing) {
-      _nameController.text = viewModel.technicianData['name'] ?? '';
-      _phoneController.text = viewModel.technicianData['phone'] ?? '';
-      _descriptionController.text =
-          viewModel.technicianData['description'] ?? '';
-      _experienceController.text = viewModel.technicianData['experience'] ?? '';
-      _businessNameController.text =
-          viewModel.technicianData['businessName'] ?? '';
-      _businessDescriptionController.text =
-          viewModel.technicianData['businessDescription'] ?? '';
-    }
+  // Este método NO usa setState() y es seguro de llamar fuera del ciclo de build
+  void _updateControllersFromViewModel(TechnicianViewModel viewModel) {
+    if (viewModel.technicianData.isEmpty) return;
+
+    // Actualizar los controladores sin llamar a setState
+    _nameController.text = viewModel.technicianData['name'] ?? '';
+    _phoneController.text = viewModel.technicianData['phone'] ?? '';
+    _descriptionController.text = viewModel.technicianData['description'] ?? '';
+    _experienceController.text = viewModel.technicianData['experience'] ?? '';
+    _businessNameController.text =
+        viewModel.technicianData['businessName'] ?? '';
+    _businessDescriptionController.text =
+        viewModel.technicianData['businessDescription'] ?? '';
+
+    // Marcamos que los controladores fueron inicializados
+    _controllersInitialized = true;
   }
 
   // Método para cambiar a modo edición
@@ -93,7 +101,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
           context,
           listen: false,
         );
-        _updateControllers(technicianViewModel);
+        _updateControllersFromViewModel(technicianViewModel);
         _profileImageFile = null;
         _businessImageFile = null;
       }
@@ -220,37 +228,19 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   Widget build(BuildContext context) {
     return Consumer<TechnicianViewModel>(
       builder: (context, technicianViewModel, _) {
-        // Actualizar controladores con datos del técnico
-        if (!technicianViewModel.isLoading && !_isEditing) {
-          _updateControllers(technicianViewModel);
+        // Actualizar controladores solo si no se han inicializado aún
+        // y no estamos en modo edición y no está cargando
+        if (!_controllersInitialized &&
+            !_isEditing &&
+            !technicianViewModel.isLoading) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _updateControllersFromViewModel(technicianViewModel);
+          });
         }
 
         if (technicianViewModel.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
-
-        // Forzar la carga de las categorías si está vacío
-        if (technicianViewModel.selectedCategories.isEmpty && !_isEditing) {
-          // Intentar cargar de nuevo una vez
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            technicianViewModel.loadTechnicianProfile();
-          });
-        }
-
-        // Asegurar que las categorías se carguen
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          if (Provider.of<CategoryViewModel>(
-            context,
-            listen: false,
-          ).categories.isEmpty) {
-            Provider.of<CategoryViewModel>(
-              context,
-              listen: false,
-            ).loadCategories();
-          }
-        });
 
         return Scaffold(
           body: Form(
@@ -360,9 +350,6 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                               address,
                               coverageRadius,
                             );
-
-                            // Forzar actualización de la UI
-                            setState(() {});
                           }
                         }
                       }
@@ -449,6 +436,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                   ? FileImage(_profileImageFile!)
                   : viewModel.technicianData['profileImage'] != null
                   ? NetworkImage(viewModel.technicianData['profileImage'])
+                      as ImageProvider
                   : null,
           child:
               viewModel.technicianData['profileImage'] == null &&
