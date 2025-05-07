@@ -105,6 +105,24 @@ class TechnicianRepository {
     }
   }
 
+  Future<bool> syncUserProfileImage(String imageUrl) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Actualizar en la colección de usuarios
+      await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .update({'profileImage': imageUrl});
+
+      return true;
+    } catch (e) {
+      print('Error al sincronizar imagen de perfil: $e');
+      return false;
+    }
+  }
+
   // Actualizar perfil técnico
   Future<bool> updateTechnicianProfile(Map<String, dynamic> data) async {
     try {
@@ -148,10 +166,7 @@ class TechnicianRepository {
   Future<String?> uploadProfileImage(File imageFile) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) {
-        print('No hay usuario autenticado para subir imagen');
-        return null;
-      }
+      if (user == null) return null;
 
       // Subir imagen a Storage
       final url = await _storageService.uploadImage(
@@ -160,10 +175,18 @@ class TechnicianRepository {
         user.uid,
       );
 
-      // Si la subida fue exitosa, actualizar el perfil
+      // Si la subida fue exitosa, actualizar perfil de técnico
       if (url != null) {
         await updateTechnicianProfile({'profileImage': url});
-        print('Imagen de perfil subida y actualizada: $url');
+
+        // También actualizar el perfil de Firebase Auth
+        await user.updatePhotoURL(url);
+
+        // Y actualizar en la colección de usuarios
+        await _firestore
+            .collection(AppConstants.usersCollection)
+            .doc(user.uid)
+            .update({'profileImage': url});
       }
 
       return url;
@@ -177,10 +200,7 @@ class TechnicianRepository {
   Future<bool> removeProfileImage() async {
     try {
       final user = _auth.currentUser;
-      if (user == null) {
-        print('No hay usuario autenticado para eliminar imagen');
-        return false;
-      }
+      if (user == null) return false;
 
       // Obtener perfil actual para conseguir la URL de la imagen
       final docRef = _firestore
@@ -192,23 +212,24 @@ class TechnicianRepository {
         final profileImageUrl = doc.data()!['profileImage'];
 
         if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
-          try {
-            // Eliminar imagen de Storage
-            await _storageService.deleteImageByUrl(profileImageUrl);
+          // Eliminar imagen de Storage
+          await _storageService.deleteImageByUrl(profileImageUrl);
 
-            // Actualizar perfil
-            await updateTechnicianProfile({'profileImage': null});
-            print('Imagen de perfil eliminada correctamente');
-            return true;
-          } catch (e) {
-            print('Error al eliminar imagen de Storage: $e');
-            // Aún así, actualizamos el perfil para quitar la referencia
-            await updateTechnicianProfile({'profileImage': null});
-            return true;
-          }
+          // Actualizar perfil de técnico
+          await updateTechnicianProfile({'profileImage': null});
+
+          // Actualizar perfil de Firebase Auth
+          await user.updatePhotoURL(null);
+
+          // Actualizar en la colección de usuarios
+          await _firestore
+              .collection(AppConstants.usersCollection)
+              .doc(user.uid)
+              .update({'profileImage': null});
+
+          return true;
         }
       }
-      print('No se encontró imagen de perfil para eliminar');
       return false;
     } catch (e) {
       print('Error al eliminar imagen de perfil: $e');

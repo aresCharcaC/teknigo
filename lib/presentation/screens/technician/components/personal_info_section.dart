@@ -9,11 +9,14 @@ class PersonalInfoSection extends StatelessWidget {
   final bool isIndividual;
   final Map<String, dynamic> userData;
   final bool isEditing;
+  final File? profileImageFile;
+  final Function() onPickProfileImage;
   final TextEditingController descriptionController;
   final TextEditingController experienceController;
   final TextEditingController businessNameController;
   final TextEditingController businessDescriptionController;
-  final Function(File) onImageSelected;
+  final File? businessImageFile;
+  final Function() onPickBusinessImage;
 
   const PersonalInfoSection({
     Key? key,
@@ -24,7 +27,10 @@ class PersonalInfoSection extends StatelessWidget {
     required this.experienceController,
     required this.businessNameController,
     required this.businessDescriptionController,
-    required this.onImageSelected,
+    this.profileImageFile,
+    required this.onPickProfileImage,
+    this.businessImageFile,
+    required this.onPickBusinessImage,
   }) : super(key: key);
 
   @override
@@ -104,6 +110,52 @@ class PersonalInfoSection extends StatelessWidget {
                 ),
               ],
             ),
+
+        const SizedBox(height: 16),
+
+        // Imagen profesional
+        const Text(
+          'Imagen profesional:',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+
+        Center(
+          child: Stack(
+            children: [
+              Container(
+                width: double.infinity,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(12),
+                  image: _getBusinessImageDecoration(),
+                ),
+                child: _getBusinessImagePlaceholder('Imagen profesional'),
+              ),
+              if (isEditing)
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: InkWell(
+                    onTap: onPickBusinessImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.add_a_photo,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -177,123 +229,90 @@ class PersonalInfoSection extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // Imagen de la empresa/negocio
-        isEditing
-            ? Center(
-              child: Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 160,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(12),
-                      image:
-                          userData['businessImage'] != null
-                              ? DecorationImage(
-                                image: NetworkImage(userData['businessImage']),
-                                fit: BoxFit.cover,
-                              )
-                              : null,
-                    ),
-                    child:
-                        userData['businessImage'] == null
-                            ? const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.business,
-                                    size: 48,
-                                    color: Colors.grey,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Imagen del negocio',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                            )
-                            : null,
-                  ),
-                  Positioned(
-                    right: 8,
-                    bottom: 8,
-                    child: InkWell(
-                      onTap: () => _pickImage(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.add_a_photo,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+        // Logo/Imagen de la empresa
+        const Text(
+          'Logo/Imagen de empresa:',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+
+        Center(
+          child: Stack(
+            children: [
+              Container(
+                width: double.infinity,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(12),
+                  image: _getBusinessImageDecoration(),
+                ),
+                child: _getBusinessImagePlaceholder('Logo/Imagen de empresa'),
+              ),
+              if (isEditing)
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: InkWell(
+                    onTap: onPickBusinessImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.add_a_photo,
+                        color: Colors.white,
+                        size: 24,
                       ),
                     ),
                   ),
-                ],
-              ),
-            )
-            : userData['businessImage'] != null
-            ? Container(
-              width: double.infinity,
-              height: 160,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                image: DecorationImage(
-                  image: NetworkImage(userData['businessImage']),
-                  fit: BoxFit.cover,
                 ),
-              ),
-            )
-            : const SizedBox.shrink(),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  // Método para seleccionar imagen
-  void _pickImage(BuildContext context) async {
-    showModalBottomSheet(
-      context: context,
-      builder:
-          (context) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.photo_camera),
-                  title: const Text('Tomar foto'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    // Implementar la funcionalidad de tomar foto aquí
-                    // Por ejemplo:
-                    // final image = await ImagePicker().pickImage(source: ImageSource.camera);
-                    // if (image != null) {
-                    //   onImageSelected(File(image.path));
-                    // }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library),
-                  title: const Text('Seleccionar de galería'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    // Implementar la funcionalidad de seleccionar desde galería aquí
-                    // Por ejemplo:
-                    // final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-                    // if (image != null) {
-                    //   onImageSelected(File(image.path));
-                    // }
-                  },
-                ),
-              ],
+  // Obtener la imagen de decoración para negocio
+  DecorationImage? _getBusinessImageDecoration() {
+    if (businessImageFile != null) {
+      return DecorationImage(
+        image: FileImage(businessImageFile!),
+        fit: BoxFit.cover,
+      );
+    }
+
+    if (userData['businessImage'] != null) {
+      return DecorationImage(
+        image: NetworkImage(userData['businessImage']),
+        fit: BoxFit.cover,
+      );
+    }
+
+    return null;
+  }
+
+  // Obtener placeholder para la imagen de negocio
+  Widget? _getBusinessImagePlaceholder(String label) {
+    if (businessImageFile == null && userData['businessImage'] == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isIndividual ? Icons.person_outline : Icons.business,
+              size: 48,
+              color: Colors.grey,
             ),
-          ),
-    );
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+    return null;
   }
 }

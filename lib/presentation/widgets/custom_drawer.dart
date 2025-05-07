@@ -246,13 +246,20 @@ class CustomDrawer extends StatelessWidget {
     String? photoURL,
     String firstLetter,
   ) {
+    // Obtener el currentUser desde AuthViewModel
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final user = authViewModel.currentUser;
+
+    // Obtener URL de la foto de perfil (priorizar la de Firebase Auth)
+    final userProfileImage = user?.photoURL ?? photoURL;
+
     return DrawerHeader(
       decoration: BoxDecoration(color: Theme.of(context).primaryColor),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar del usuario (con foto o letra)
-          photoURL != null && photoURL.isNotEmpty
+          userProfileImage != null && userProfileImage.isNotEmpty
               ? Container(
                 width: 60,
                 height: 60,
@@ -260,7 +267,7 @@ class CustomDrawer extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: Colors.white,
                   image: DecorationImage(
-                    image: NetworkImage(photoURL),
+                    image: NetworkImage(userProfileImage),
                     fit: BoxFit.cover,
                     onError: (exception, stackTrace) {
                       // Si hay error al cargar la imagen, mostrará la letra

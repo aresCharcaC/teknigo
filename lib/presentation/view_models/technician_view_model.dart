@@ -9,6 +9,7 @@ import '../../core/models/social_link.dart';
 import '../../data/repositories/technician_repository.dart';
 import '../common/base_view_model.dart';
 import '../common/resource.dart';
+import '../../data/services/storage_service.dart';
 
 class TechnicianViewModel extends BaseViewModel {
   final TechnicianRepository _repository = TechnicianRepository();
@@ -183,6 +184,26 @@ class TechnicianViewModel extends BaseViewModel {
     ];
   }
 
+  Future<File?> pickImageFromGallery() async {
+    try {
+      final storageService = StorageService();
+      return await storageService.pickImageFromGallery();
+    } catch (e) {
+      setError('Error al seleccionar imagen: $e');
+      return null;
+    }
+  }
+
+  Future<File?> pickImageFromCamera() async {
+    try {
+      final storageService = StorageService();
+      return await storageService.pickImageFromCamera();
+    } catch (e) {
+      setError('Error al tomar foto: $e');
+      return null;
+    }
+  }
+
   // Actualizar perfil de técnico
   Future<Resource<bool>> updateTechnicianProfile(
     Map<String, dynamic> data,
@@ -268,6 +289,9 @@ class TechnicianViewModel extends BaseViewModel {
       if (url != null) {
         _technicianData['profileImage'] = url;
         _profileImageFile = null;
+
+        // Actualizar también en la colección de usuarios para mantener sincronizado
+        await _repository.syncUserProfileImage(url);
       }
 
       setLoaded();

@@ -108,6 +108,214 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
     });
   }
 
+  // lib/presentation/screens/technician/profile/technician_profile_screen.dart
+
+  // Método para seleccionar imagen de perfil
+  void _pickProfileImage() async {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera),
+                  title: const Text('Tomar foto'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final technicianViewModel =
+                        Provider.of<TechnicianViewModel>(
+                          context,
+                          listen: false,
+                        );
+                    final image =
+                        await technicianViewModel.pickImageFromCamera();
+                    if (image != null) {
+                      setState(() {
+                        _profileImageFile = image;
+                      });
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Seleccionar de galería'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final technicianViewModel =
+                        Provider.of<TechnicianViewModel>(
+                          context,
+                          listen: false,
+                        );
+                    final image =
+                        await technicianViewModel.pickImageFromGallery();
+                    if (image != null) {
+                      setState(() {
+                        _profileImageFile = image;
+                      });
+                    }
+                  },
+                ),
+                if (Provider.of<TechnicianViewModel>(
+                      context,
+                      listen: false,
+                    ).technicianData['profileImage'] !=
+                    null)
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text(
+                      'Eliminar foto actual',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder:
+                            (context) => AlertDialog(
+                              title: const Text('Eliminar foto'),
+                              content: const Text(
+                                '¿Estás seguro de eliminar tu foto de perfil?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed:
+                                      () => Navigator.pop(context, false),
+                                  child: const Text('CANCELAR'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text(
+                                    'ELIMINAR',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                      );
+
+                      if (confirm == true) {
+                        // Eliminar imagen
+                        final technicianViewModel =
+                            Provider.of<TechnicianViewModel>(
+                              context,
+                              listen: false,
+                            );
+                        await technicianViewModel.removeProfileImage();
+                        setState(() {});
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  // Método para seleccionar imagen de negocio
+  void _pickBusinessImage() async {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera),
+                  title: const Text('Tomar foto'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final technicianViewModel =
+                        Provider.of<TechnicianViewModel>(
+                          context,
+                          listen: false,
+                        );
+                    final image =
+                        await technicianViewModel.pickImageFromCamera();
+                    if (image != null) {
+                      setState(() {
+                        _businessImageFile = image;
+                      });
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Seleccionar de galería'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final technicianViewModel =
+                        Provider.of<TechnicianViewModel>(
+                          context,
+                          listen: false,
+                        );
+                    final image =
+                        await technicianViewModel.pickImageFromGallery();
+                    if (image != null) {
+                      setState(() {
+                        _businessImageFile = image;
+                      });
+                    }
+                  },
+                ),
+                if (Provider.of<TechnicianViewModel>(
+                      context,
+                      listen: false,
+                    ).technicianData['businessImage'] !=
+                    null)
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text(
+                      'Eliminar imagen actual',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder:
+                            (context) => AlertDialog(
+                              title: const Text('Eliminar imagen'),
+                              content: const Text(
+                                '¿Estás seguro de eliminar esta imagen?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed:
+                                      () => Navigator.pop(context, false),
+                                  child: const Text('CANCELAR'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text(
+                                    'ELIMINAR',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                      );
+
+                      if (confirm == true) {
+                        // Eliminar imagen
+                        final technicianViewModel =
+                            Provider.of<TechnicianViewModel>(
+                              context,
+                              listen: false,
+                            );
+                        await technicianViewModel.removeBusinessImage();
+                        setState(() {});
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+    );
+  }
+
   // Método para guardar cambios del perfil
   Future<void> _saveProfile() async {
     if (_formKey.currentState != null && !_formKey.currentState!.validate())
@@ -276,15 +484,10 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                     businessNameController: _businessNameController,
                     businessDescriptionController:
                         _businessDescriptionController,
-                    onImageSelected: (file) {
-                      setState(() {
-                        if (technicianViewModel.isIndividual) {
-                          _profileImageFile = file;
-                        } else {
-                          _businessImageFile = file;
-                        }
-                      });
-                    },
+                    profileImageFile: _profileImageFile,
+                    onPickProfileImage: _pickProfileImage,
+                    businessImageFile: _businessImageFile,
+                    onPickBusinessImage: _pickBusinessImage,
                   ),
 
                   const SizedBox(height: 16),
@@ -427,30 +630,54 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Avatar del usuario
-        CircleAvatar(
-          radius: 40,
-          backgroundColor: Colors.blue.shade100,
-          backgroundImage:
-              _profileImageFile != null
-                  ? FileImage(_profileImageFile!)
-                  : viewModel.technicianData['profileImage'] != null
-                  ? NetworkImage(viewModel.technicianData['profileImage'])
-                      as ImageProvider
-                  : null,
-          child:
-              viewModel.technicianData['profileImage'] == null &&
-                      _profileImageFile == null
-                  ? Text(
-                    viewModel.technicianData['name']?.isNotEmpty == true
-                        ? viewModel.technicianData['name'][0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
+        // Avatar del usuario con stack para el botón de edición
+        Stack(
+          children: [
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: Colors.blue.shade100,
+              backgroundImage:
+                  _profileImageFile != null
+                      ? FileImage(_profileImageFile!)
+                      : viewModel.technicianData['profileImage'] != null
+                      ? NetworkImage(viewModel.technicianData['profileImage'])
+                          as ImageProvider<Object>
+                      : null,
+              child:
+                  viewModel.technicianData['profileImage'] == null &&
+                          _profileImageFile == null
+                      ? Text(
+                        viewModel.technicianData['name']?.isNotEmpty == true
+                            ? viewModel.technicianData['name'][0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                      : null,
+            ),
+            if (_isEditing)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: InkWell(
+                  onTap: _pickProfileImage,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      shape: BoxShape.circle,
                     ),
-                  )
-                  : null,
+                    child: const Icon(
+                      Icons.edit,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
 
         const SizedBox(width: 16),
@@ -483,6 +710,25 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+
+              const SizedBox(height: 4),
+
+              // Mostrar estrellas de valoración
+              Row(
+                children: [
+                  const Icon(Icons.star, size: 16, color: Colors.amber),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${(viewModel.technicianData['rating'] ?? 0.0).toStringAsFixed(1)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '(${viewModel.technicianData['reviewCount'] ?? 0} reseñas)',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  ),
+                ],
+              ),
 
               const SizedBox(height: 4),
 
