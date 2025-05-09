@@ -123,6 +123,74 @@ class TechnicianRepository {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getTechniciansInCity(
+    String userCity, {
+    int limit = 10,
+  }) async {
+    try {
+      print('Buscando técnicos en ciudad: $userCity');
+
+      // Obtener todos los técnicos con servicios activos
+      final query = _firestore
+          .collection(AppConstants.techniciansCollection)
+          .where('isServicesActive', isEqualTo: true)
+          .limit(30); // Obtenemos más porque luego filtraremos
+
+      final snapshot = await query.get();
+
+      if (snapshot.docs.isEmpty) {
+        print('No se encontraron técnicos con servicios activos');
+        return [];
+      }
+
+      // Lista para almacenar los técnicos con sus datos completos
+      List<Map<String, dynamic>> techniciansWithUserData = [];
+
+      // Para cada técnico, obtenemos sus datos de usuario
+      for (var techDoc in snapshot.docs) {
+        final techId = techDoc.id;
+        final techData = techDoc.data();
+
+        // Obtener datos del usuario correspondiente
+        try {
+          final userDoc =
+              await _firestore
+                  .collection(AppConstants.usersCollection)
+                  .doc(techId) // Mismo ID entre técnico y usuario
+                  .get();
+
+          if (userDoc.exists) {
+            // Combinar datos de técnico y usuario
+            final userData = userDoc.data() ?? {};
+            final combinedData = {...techData, ...userData, 'id': techId};
+
+            // Verificar si la ciudad coincide
+            final techCity = userData['city'];
+            if (techCity != null &&
+                techCity.toString().toLowerCase() == userCity.toLowerCase()) {
+              techniciansWithUserData.add(combinedData);
+            }
+          }
+        } catch (e) {
+          print('Error al obtener datos de usuario para técnico $techId: $e');
+        }
+
+        // Si ya tenemos suficientes técnicos, salimos del bucle
+        if (techniciansWithUserData.length >= limit) {
+          break;
+        }
+      }
+
+      print(
+        'Técnicos encontrados en $userCity: ${techniciansWithUserData.length}',
+      );
+      return techniciansWithUserData;
+    } catch (e) {
+      print('Error al obtener técnicos: $e');
+      return [];
+    }
+  }
+
   // Actualizar perfil técnico
   Future<bool> updateTechnicianProfile(Map<String, dynamic> data) async {
     try {

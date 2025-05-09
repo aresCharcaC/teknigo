@@ -10,6 +10,7 @@ import 'presentation/view_models/search_view_model.dart';
 import 'presentation/view_models/profile_view_model.dart';
 import 'presentation/view_models/category_view_model.dart';
 import 'presentation/view_models/technician_view_model.dart';
+import 'presentation/view_models/home_view_model.dart';
 import 'presentation/view_models/service_request_view_model.dart';
 import 'presentation/view_models/chat_view_model.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -42,6 +43,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ServiceRequestViewModel()),
         ChangeNotifierProvider(create: (_) => ChatViewModel()),
         ChangeNotifierProvider(create: (_) => CategoryViewModel()),
+        ChangeNotifierProvider(create: (_) => HomeViewModel()),
         // Agregar más providers a medida que desarrolles nuevas funciones
       ],
       child: const MyApp(),

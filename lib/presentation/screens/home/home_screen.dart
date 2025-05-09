@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../view_models/auth_view_model.dart';
 import '../../view_models/category_view_model.dart';
+import '../../view_models/home_view_model.dart';
 import '../../widgets/category_grid_item.dart';
 import '../../widgets/technician_card.dart';
 
@@ -16,43 +17,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  // Lista de técnicos mejor valorados (datos simulados)
-  final List<TechnicianItem> _topTechnicians = [
-    TechnicianItem(
-      id: '1',
-      name: 'Carlos Rodríguez',
-      specialty: 'Electricista',
-      rating: 4.8,
-      distance: 2.1,
-    ),
-    TechnicianItem(
-      id: '2',
-      name: 'María López',
-      specialty: 'Técnico PC',
-      rating: 4.7,
-      distance: 3.4,
-    ),
-    TechnicianItem(
-      id: '3',
-      name: 'Juan Pérez',
-      specialty: 'Plomero',
-      rating: 4.9,
-      distance: 1.8,
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
 
-    // Cargar categorías al iniciar
+    // Cargar categorías y técnicos al iniciar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final categoryViewModel = Provider.of<CategoryViewModel>(
         context,
         listen: false,
       );
       categoryViewModel.loadCategories();
+
+      // Cargar algunos técnicos disponibles
+      final homeViewModel = Provider.of<HomeViewModel>(context, listen: false);
+      homeViewModel.loadLocalTechnicians(); // Cambiar este método
     });
   }
 
@@ -105,15 +85,89 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
 
           // Lista horizontal de técnicos mejor valorados
-          SizedBox(
-            height: 130, // Altura reducida
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _topTechnicians.length,
-              itemBuilder: (context, index) {
-                return TechnicianCard(technician: _topTechnicians[index]);
-              },
-            ),
+          Consumer<HomeViewModel>(
+            builder: (context, homeViewModel, child) {
+              if (homeViewModel.isLoading) {
+                return SizedBox(
+                  height: 130,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                );
+              }
+
+              if (homeViewModel.hasError) {
+                return SizedBox(
+                  height: 130,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 36,
+                          color: Colors.red.shade300,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Error al cargar técnicos',
+                          style: TextStyle(color: Colors.red.shade700),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              if (homeViewModel.topTechnicians.isEmpty) {
+                return SizedBox(
+                  height: 130,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.handyman_outlined,
+                          size: 36,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No hay técnicos disponibles en tu ciudad',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return SizedBox(
+                height: 130, // Altura reducida
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: homeViewModel.topTechnicians.length,
+                  itemBuilder: (context, index) {
+                    return TechnicianCard(
+                      technician: homeViewModel.topTechnicians[index],
+                      onTap: () {
+                        // Acción al tocar la tarjeta
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Ver perfil de ${homeViewModel.topTechnicians[index].name}',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              );
+            },
           ),
 
           const SizedBox(height: 24),
