@@ -66,7 +66,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
 
         // Contenido principal - cambia según la pestaña seleccionada
-        body: _clientScreens[_currentIndex],
+        //body: _clientScreens[_currentIndex],
 
         // BottomNavigationBar simplificado con solo Home y Búsqueda
         bottomNavigationBar: BottomNavigationBar(
@@ -81,11 +81,15 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
           onTap: (index) {
+            // Si ya estamos en esa pestaña, no hacemos nada
+            if (index == _currentIndex) return;
+
             setState(() {
               _currentIndex = index;
             });
           },
         ),
+        body: _currentIndex == 0 ? const HomeScreen() : const SearchScreen(),
       ),
     );
   }

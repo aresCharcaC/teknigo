@@ -44,6 +44,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ChatViewModel()),
         ChangeNotifierProvider(create: (_) => CategoryViewModel()),
         ChangeNotifierProvider(create: (_) => HomeViewModel()),
+        ChangeNotifierProvider(create: (_) => SearchViewModel()),
         // Agregar más providers a medida que desarrolles nuevas funciones
       ],
       child: const MyApp(),

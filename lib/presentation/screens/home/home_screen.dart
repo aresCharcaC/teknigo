@@ -6,6 +6,7 @@ import '../../view_models/category_view_model.dart';
 import '../../view_models/home_view_model.dart';
 import '../../widgets/category_grid_item.dart';
 import '../../widgets/technician_card.dart';
+import '../../screens//search/search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -282,12 +283,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     category: categoryViewModel.filteredCategories[index],
                     onTap: () {
                       // Navegar a la pantalla de búsqueda con esta categoría
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Categoría: ${categoryViewModel.filteredCategories[index].name}',
-                          ),
-                          behavior: SnackBarBehavior.floating,
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => SearchScreen(
+                                initialCategory:
+                                    categoryViewModel
+                                        .filteredCategories[index]
+                                        .id,
+                              ),
                         ),
                       );
                     },

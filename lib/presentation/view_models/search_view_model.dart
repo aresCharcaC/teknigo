@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
 import '../common/base_view_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/models/technician_search_model.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/search_repository.dart';
 
 /// Model for technician search results
 class TechnicianSearchItem {
@@ -27,175 +31,166 @@ class TechnicianSearchItem {
 
 /// ViewModel for the search screen
 class SearchViewModel extends BaseViewModel {
-  // Search query
-  String _query = '';
-  String get query => _query;
+  final SearchRepository _searchRepository = SearchRepository();
+  final AuthRepository _authRepository = AuthRepository();
 
-  // Filters
-  String _selectedCategory = 'Todas';
-  String get selectedCategory => _selectedCategory;
+  // Datos para la búsqueda
+  String _userCity = '';
+  String get userCity => _userCity;
 
-  double _maxDistance = AppConstants.defaultCoverageRadius;
-  double get maxDistance => _maxDistance;
+  String _searchText = '';
+  String get searchText => _searchText;
 
-  double _minRating = 3.0;
+  List<String> _selectedCategories = [];
+  List<String> get selectedCategories => _selectedCategories;
+
+  double _minRating = 0.0;
   double get minRating => _minRating;
 
-  // Check if any filters are active
-  bool get hasActiveFilters =>
-      _selectedCategory != 'Todas' ||
-      _maxDistance < AppConstants.defaultCoverageRadius ||
-      _minRating > 3.0;
+  bool _onlyAvailable = false;
+  bool get onlyAvailable => _onlyAvailable;
 
-  // Mock data for technicians
-  final List<TechnicianSearchItem> _technicians = [
-    TechnicianSearchItem(
-      id: '1',
-      name: 'Carlos Rodríguez',
-      specialty: 'Electricista',
-      rating: 4.8,
-      reviews: 124,
-      distance: 2.1,
-      available: true,
-    ),
-    TechnicianSearchItem(
-      id: '2',
-      name: 'María López',
-      specialty: 'Técnico PC',
-      rating: 4.7,
-      reviews: 98,
-      distance: 3.4,
-      available: true,
-    ),
-    TechnicianSearchItem(
-      id: '3',
-      name: 'Juan Pérez',
-      specialty: 'Plomero',
-      rating: 4.9,
-      reviews: 203,
-      distance: 1.8,
-      available: false,
-    ),
-    TechnicianSearchItem(
-      id: '4',
-      name: 'Ana Martínez',
-      specialty: 'Refrigeración',
-      rating: 4.6,
-      reviews: 87,
-      distance: 4.2,
-      available: true,
-    ),
-    TechnicianSearchItem(
-      id: '5',
-      name: 'Roberto Gómez',
-      specialty: 'Cerrajero',
-      rating: 4.5,
-      reviews: 76,
-      distance: 5.1,
-      available: true,
-    ),
-    TechnicianSearchItem(
-      id: '6',
-      name: 'Laura Torres',
-      specialty: 'Electricista',
-      rating: 4.4,
-      reviews: 62,
-      distance: 6.3,
-      available: true,
-    ),
-  ];
+  bool? _onlyBusiness;
+  bool? get onlyBusiness => _onlyBusiness;
 
-  List<TechnicianSearchItem> _filteredTechnicians = [];
-  List<TechnicianSearchItem> get filteredTechnicians => _filteredTechnicians;
+  // Resultados
+  List<TechnicianSearchModel> _searchResults = [];
+  List<TechnicianSearchModel> get searchResults => _searchResults;
 
-  // Initialize the ViewModel
-  void initialize() {
-    executeSync(() {
-      _filteredTechnicians = List.from(_technicians);
+  // Control de paginación
+  DocumentSnapshot? _lastDocument;
+  bool _hasMoreResults = true;
+  bool get hasMoreResults => _hasMoreResults;
+
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+
+  // Inicializar con la ciudad del usuario
+  Future<void> initialize() async {
+    return executeAsync<void>(() async {
+      // Obtener datos del usuario
+      final userData = await _authRepository.getUserData();
+
+      // Obtener la ciudad (con valor por defecto)
+      _userCity = userData?['city'] ?? 'Arequipa';
+
+      // Realizar búsqueda inicial
+      await searchTechnicians();
     });
   }
 
-  // Update search query
-  void updateQuery(String query) {
-    _query = query.toLowerCase().trim();
-    _filterTechnicians();
+  // Actualizar texto de búsqueda
+  void updateSearchText(String text) {
+    _searchText = text;
     notifyListeners();
   }
 
-  // Clear search
-  void clearSearch() {
-    _query = '';
-    _filterTechnicians();
+  // Realizar búsqueda con filtros actuales
+  Future<void> searchTechnicians({bool reset = true}) async {
+    return executeAsync<void>(() async {
+      // Si es una nueva búsqueda, reiniciar paginación
+      if (reset) {
+        _lastDocument = null;
+        _hasMoreResults = true;
+        _searchResults = [];
+      }
+
+      // No buscar si ya no hay más resultados
+      if (!_hasMoreResults && !reset) {
+        return;
+      }
+
+      // Marcar como cargando más si es paginación
+      if (!reset) {
+        _isLoadingMore = true;
+        notifyListeners();
+      }
+
+      // Realizar la búsqueda
+      final results = await _searchRepository.searchTechnicians(
+        city: _userCity,
+        searchTerm: _searchText,
+        categoryFilter:
+            _selectedCategories.isNotEmpty ? _selectedCategories : null,
+        ratingFilter: _minRating > 0 ? _minRating : null,
+        availableNowFilter: _onlyAvailable ? true : null,
+        businessFilter: _onlyBusiness,
+        lastDocument: _lastDocument,
+      );
+
+      // Si no hay resultados y es la primera página, no hay más
+      if (results.isEmpty && reset) {
+        _hasMoreResults = false;
+        return;
+      }
+
+      // Si hay menos resultados que el límite en paginación, no hay más
+      if (results.length < 10 && !reset) {
+        _hasMoreResults = false;
+      }
+
+      // Actualizar resultados
+      if (reset) {
+        _searchResults = results;
+      } else {
+        _searchResults.addAll(results);
+        _isLoadingMore = false;
+      }
+
+      // Actualizar último documento para próxima paginación
+      if (results.isNotEmpty) {
+        _lastDocument = await _searchRepository.getLastDocumentForPagination(
+          _userCity,
+          reset ? results.length : _searchResults.length,
+        );
+      }
+    });
+  }
+
+  // Cargar más resultados (paginación)
+  Future<void> loadMoreResults() async {
+    if (_isLoadingMore || !_hasMoreResults) return;
+
+    await searchTechnicians(reset: false);
+  }
+
+  // Actualizar filtros de categoría
+  void updateCategoryFilter(List<String> categories) {
+    _selectedCategories = categories;
     notifyListeners();
   }
 
-  // Update all filters at once
-  void updateFilters({
-    required String category,
-    required double maxDistance,
-    required double minRating,
-  }) {
-    _selectedCategory = category;
-    _maxDistance = maxDistance;
-    _minRating = minRating;
-    _filterTechnicians();
-    notifyListeners();
-  }
-
-  // Update category filter
-  void updateCategory(String category) {
-    _selectedCategory = category;
-    _filterTechnicians();
-    notifyListeners();
-  }
-
-  // Update max distance filter
-  void updateMaxDistance(double distance) {
-    _maxDistance = distance;
-    _filterTechnicians();
-    notifyListeners();
-  }
-
-  // Update min rating filter
-  void updateMinRating(double rating) {
+  // Actualizar filtro de valoración mínima
+  void updateRatingFilter(double rating) {
     _minRating = rating;
-    _filterTechnicians();
     notifyListeners();
   }
 
-  // Apply search and filters
-  void searchTechnicians() {
-    _filterTechnicians();
+  // Actualizar filtro de disponibilidad
+  void updateAvailabilityFilter(bool onlyAvailable) {
+    _onlyAvailable = onlyAvailable;
     notifyListeners();
   }
 
-  // Filter technicians based on criteria
-  void _filterTechnicians() {
-    executeSync(() {
-      _filteredTechnicians =
-          _technicians.where((technician) {
-            // Filter by search query
-            final matchesQuery =
-                _query.isEmpty ||
-                technician.name.toLowerCase().contains(_query) ||
-                technician.specialty.toLowerCase().contains(_query);
+  // Actualizar filtro de tipo de cuenta
+  void updateBusinessFilter(bool? onlyBusiness) {
+    _onlyBusiness = onlyBusiness;
+    notifyListeners();
+  }
 
-            // Filter by category
-            final matchesCategory =
-                _selectedCategory == 'Todas' ||
-                technician.specialty == _selectedCategory;
+  // Aplicar todos los filtros y realizar búsqueda
+  Future<void> applyFilters() async {
+    await searchTechnicians();
+  }
 
-            // Filter by distance
-            final matchesDistance = technician.distance <= _maxDistance;
+  // Limpiar todos los filtros
+  Future<void> clearFilters() async {
+    _selectedCategories = [];
+    _minRating = 0.0;
+    _onlyAvailable = false;
+    _onlyBusiness = null;
+    notifyListeners();
 
-            // Filter by rating
-            final matchesRating = technician.rating >= _minRating;
-
-            return matchesQuery &&
-                matchesCategory &&
-                matchesDistance &&
-                matchesRating;
-          }).toList();
-    });
+    await searchTechnicians();
   }
 }
