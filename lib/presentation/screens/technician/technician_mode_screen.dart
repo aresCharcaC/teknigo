@@ -53,7 +53,7 @@ class _TechnicianModeScreenState extends State<TechnicianModeScreen>
     final List<Widget> _technicianScreens = [
       const TechnicianProfileScreen(),
       const TechnicianChatsScreen(),
-      const TechnicianRequestsScreen(),
+      //const TechnicianRequestsScreen(),
     ];
 
     return FadeTransition(

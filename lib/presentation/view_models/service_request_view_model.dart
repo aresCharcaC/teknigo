@@ -1,11 +1,14 @@
+// lib/presentation/view_models/service_request_view_model.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/models/service_request_model.dart';
+import '../../data/repositories/service_request_repository.dart';
 import '../common/base_view_model.dart';
+import '../common/resource.dart';
 
 class ServiceRequestViewModel extends BaseViewModel {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ServiceRequestRepository _repository = ServiceRequestRepository();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   List<ServiceRequestModel> _userRequests = [];
@@ -14,29 +17,59 @@ class ServiceRequestViewModel extends BaseViewModel {
   ServiceRequestModel? _currentRequest;
   ServiceRequestModel? get currentRequest => _currentRequest;
 
-  // Load user's service requests
+  // Stream para escuchar cambios en tiempo real
+  Stream<List<ServiceRequestModel>>? _requestsStream;
+
+  // Constructor que inicia la escucha
+  ServiceRequestViewModel() {
+    // Iniciar escucha en tiempo real si hay un usuario autenticado
+    if (_auth.currentUser != null) {
+      _startRequestsListener();
+    }
+  }
+
+  // Iniciar escucha en tiempo real
+  void _startRequestsListener() {
+    _requestsStream = _repository.getUserRequestsStream();
+
+    // Suscribirse al stream
+    _requestsStream?.listen(
+      (requests) {
+        _userRequests = requests;
+        notifyListeners();
+      },
+      onError: (error) {
+        print('Error en el stream de solicitudes: $error');
+        setError('Error al cargar solicitudes: $error');
+      },
+    );
+  }
+
+  // Load user's service requests (carga inicial)
   Future<void> loadUserServiceRequests() async {
     return executeAsync<void>(() async {
       final user = _auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        print('No hay usuario autenticado para cargar solicitudes');
+        return;
+      }
 
-      // Query Firestore for user's requests
-      final snapshot =
-          await _firestore
-              .collection('service_requests')
-              .where('userId', isEqualTo: user.uid)
-              .orderBy('createdAt', descending: true)
-              .get();
+      // Obtener solicitudes desde Firebase
+      final requests = await _repository.getUserRequests();
 
-      // Convert to model objects
-      _userRequests =
-          snapshot.docs
-              .map((doc) => ServiceRequestModel.fromFirestore(doc))
-              .toList();
+      // Verificar si se obtuvieron solicitudes
+      if (requests.isNotEmpty) {
+        _userRequests = requests;
+        print('Solicitudes cargadas correctamente: ${_userRequests.length}');
+      } else {
+        print('No se encontraron solicitudes para el usuario ${user.uid}');
+        // No usamos datos de prueba si no hay solicitudes reales
+        _userRequests = [];
+      }
 
-      // If Firestore is empty or not yet set up, use mock data
-      if (_userRequests.isEmpty) {
-        _userRequests = _getMockRequests(user.uid);
+      // Iniciar escucha en tiempo real si no se ha iniciado
+      if (_requestsStream == null) {
+        _startRequestsListener();
       }
     });
   }
@@ -44,153 +77,128 @@ class ServiceRequestViewModel extends BaseViewModel {
   // Get a specific service request by ID
   Future<void> getServiceRequestById(String requestId) async {
     return executeAsync<void>(() async {
-      // First check if it's already in the loaded requests
+      // Primero verificar si ya está en las solicitudes cargadas
       _currentRequest = _userRequests.firstWhere(
         (request) => request.id == requestId,
-        orElse: () => _findMockRequestById(requestId),
+        orElse:
+            () => ServiceRequestModel(
+              id: '',
+              userId: '',
+              title: '',
+              description: '',
+              categoryIds: [],
+              isUrgent: false,
+              inClientLocation: false,
+              createdAt: DateTime.now(),
+              status: '',
+            ),
       );
 
-      // If not found locally, query Firestore
-      if (_currentRequest == null) {
-        try {
-          final doc =
-              await _firestore
-                  .collection('service_requests')
-                  .doc(requestId)
-                  .get();
-
-          if (doc.exists) {
-            _currentRequest = ServiceRequestModel.fromFirestore(doc);
-          }
-        } catch (e) {
-          print('Error fetching request: $e');
-          setError('Error al cargar la solicitud: $e');
+      // Si no se encontró localmente o es una solicitud vacía, consultar Firebase
+      if (_currentRequest!.id.isEmpty) {
+        final request = await _repository.getRequestById(requestId);
+        if (request != null) {
+          _currentRequest = request;
+          print('Solicitud cargada desde Firebase: ${request.id}');
+        } else {
+          print('No se encontró la solicitud en Firebase: $requestId');
+          setError('No se encontró la solicitud');
         }
       }
     });
   }
 
   // Create a new service request
-  Future<void> createServiceRequest(ServiceRequestModel request) async {
-    return executeAsync<void>(() async {
+  Future<Resource<String?>> createServiceRequest(
+    ServiceRequestModel request,
+    List<File>? photos,
+  ) async {
+    try {
+      setLoading();
+
       final user = _auth.currentUser;
-      if (user == null) throw Exception('Usuario no autenticado');
+      if (user == null) {
+        setError('Usuario no autenticado');
+        return Resource.error('Usuario no autenticado');
+      }
 
-      // For now, simulate Firestore operation
-      // In production, this would write to Firestore
+      // Crear una solicitud con el ID de usuario actual
+      final newRequest = request.copyWith(userId: user.uid);
 
-      // Add request with user ID
-      final newRequest = ServiceRequestModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: user.uid,
-        title: request.title,
-        description: request.description,
-        categoryIds: request.categoryIds,
-        isUrgent: request.isUrgent,
-        inClientLocation: request.inClientLocation,
-        address: request.address,
-        createdAt: DateTime.now(),
-        scheduledDate: request.scheduledDate,
-        photos: request.photos,
-        status: 'pending',
+      // Enviar al repositorio con las fotos
+      final requestId = await _repository.createServiceRequest(
+        newRequest,
+        photos,
       );
 
-      // Add to local list
-      _userRequests.insert(0, newRequest);
+      if (requestId != null) {
+        // Cargar la solicitud creada con el ID asignado
+        final createdRequest = newRequest.copyWith(id: requestId);
 
-      // In production:
-      // await _firestore.collection('service_requests').add(newRequest.toFirestore());
-    });
+        // Actualizar la lista local (aunque el stream debería actualizarla pronto)
+        _userRequests.insert(0, createdRequest);
+        notifyListeners();
+
+        setLoaded();
+        return Resource.success(requestId);
+      } else {
+        setError('Error al crear la solicitud');
+        return Resource.error('Error al crear la solicitud');
+      }
+    } catch (e) {
+      final errorMsg = 'Error al crear solicitud: $e';
+      setError(errorMsg);
+      return Resource.error(errorMsg);
+    }
   }
 
   // Cancel a service request
-  Future<void> cancelServiceRequest(String requestId) async {
-    return executeAsync<void>(() async {
+  Future<Resource<bool>> cancelServiceRequest(String requestId) async {
+    try {
+      setLoading();
+
       final user = _auth.currentUser;
-      if (user == null) throw Exception('Usuario no autenticado');
+      if (user == null) {
+        setError('Usuario no autenticado');
+        return Resource.error('Usuario no autenticado');
+      }
 
-      // Find the request to cancel
-      final index = _userRequests.indexWhere((r) => r.id == requestId);
-      if (index == -1) throw Exception('Solicitud no encontrada');
+      // Enviar al repositorio
+      final success = await _repository.cancelRequest(requestId);
 
-      // Update status to cancelled
-      final updatedRequest = _userRequests[index].copyWith(status: 'cancelled');
-      _userRequests[index] = updatedRequest;
+      if (success) {
+        // Actualizar la lista local (aunque el stream debería actualizarla pronto)
+        final index = _userRequests.indexWhere((r) => r.id == requestId);
+        if (index != -1) {
+          _userRequests[index] = _userRequests[index].copyWith(
+            status: 'cancelled',
+          );
 
-      // In production:
-      // await _firestore
-      //   .collection('service_requests')
-      //   .doc(requestId)
-      //   .update({'status': 'cancelled'});
-    });
+          // Si la solicitud actual es la que se está cancelando, actualizarla también
+          if (_currentRequest != null && _currentRequest!.id == requestId) {
+            _currentRequest = _currentRequest!.copyWith(status: 'cancelled');
+          }
+
+          notifyListeners();
+        }
+
+        setLoaded();
+        return Resource.success(true);
+      } else {
+        setError('Error al cancelar la solicitud');
+        return Resource.error('Error al cancelar la solicitud');
+      }
+    } catch (e) {
+      final errorMsg = 'Error al cancelar solicitud: $e';
+      setError(errorMsg);
+      return Resource.error(errorMsg);
+    }
   }
 
-  // Mock data for testing - will be replaced with Firestore data
-  List<ServiceRequestModel> _getMockRequests(String userId) {
-    return [
-      ServiceRequestModel(
-        id: '1',
-        userId: userId,
-        title: 'Reparación de refrigerador',
-        description: 'Mi refrigerador no enfría correctamente desde ayer',
-        categoryIds: ['8'], // Refrigeración
-        isUrgent: true,
-        inClientLocation: true,
-        address: 'Av. Arequipa 123, Arequipa',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        status: 'pending',
-        proposalCount: 0,
-      ),
-      ServiceRequestModel(
-        id: '2',
-        userId: userId,
-        title: 'Instalación de interruptores',
-        description: 'Necesito instalar 3 interruptores nuevos en mi sala',
-        categoryIds: ['1'], // Electricista
-        isUrgent: false,
-        inClientLocation: true,
-        address: 'Calle Los Arces 456, Arequipa',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        status: 'pending',
-        proposalCount: 2,
-      ),
-      ServiceRequestModel(
-        id: '3',
-        userId: userId,
-        title: 'Formateo de laptop',
-        description:
-            'Mi laptop está muy lenta, necesito formatearla e instalar Windows 10',
-        categoryIds: ['5'], // Técnico PC
-        isUrgent: false,
-        inClientLocation: false,
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-        status: 'accepted',
-        proposalCount: 3,
-      ),
-      ServiceRequestModel(
-        id: '4',
-        userId: userId,
-        title: 'Reparación de fuga de agua',
-        description:
-            'Tengo una fuga en el baño que necesita reparación urgente',
-        categoryIds: ['3'], // Plomero
-        isUrgent: true,
-        inClientLocation: true,
-        address: 'Urb. El Palacio 789, Arequipa',
-        createdAt: DateTime.now().subtract(const Duration(days: 5)),
-        status: 'completed',
-        proposalCount: 4,
-      ),
-    ];
-  }
-
-  // Find a mock request by ID
-  ServiceRequestModel _findMockRequestById(String requestId) {
-    final user = _auth.currentUser;
-    final mockRequests = _getMockRequests(user?.uid ?? '');
-    return mockRequests.firstWhere(
-      (request) => request.id == requestId,
-      orElse: () => mockRequests.first,
-    );
+  @override
+  void dispose() {
+    // Limpiar recursos al destruir el ViewModel
+    _requestsStream = null;
+    super.dispose();
   }
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ServiceRequestModel {
   final String id;
@@ -9,6 +10,7 @@ class ServiceRequestModel {
   final bool isUrgent;
   final bool inClientLocation;
   final String? address;
+  final LatLng? location; // Campo para coordenadas
   final DateTime createdAt;
   final DateTime? scheduledDate;
   final List<String>? photos;
@@ -24,6 +26,7 @@ class ServiceRequestModel {
     required this.isUrgent,
     required this.inClientLocation,
     this.address,
+    this.location,
     required this.createdAt,
     this.scheduledDate,
     this.photos,
@@ -40,6 +43,7 @@ class ServiceRequestModel {
     required bool isUrgent,
     required bool inClientLocation,
     String? address,
+    LatLng? location,
     DateTime? scheduledDate,
     List<String>? photos,
   }) {
@@ -52,6 +56,7 @@ class ServiceRequestModel {
       isUrgent: isUrgent,
       inClientLocation: inClientLocation,
       address: address,
+      location: location,
       createdAt: DateTime.now(),
       scheduledDate: scheduledDate,
       photos: photos,
@@ -62,6 +67,27 @@ class ServiceRequestModel {
   // Convert from Firestore
   factory ServiceRequestModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // Extraer coordenadas si existen
+    LatLng? location;
+    if (data['location'] != null) {
+      final GeoPoint? geoPoint =
+          data['location'] is GeoPoint ? data['location'] as GeoPoint : null;
+
+      if (geoPoint != null) {
+        location = LatLng(geoPoint.latitude, geoPoint.longitude);
+      } else if (data['location'] is Map) {
+        // Si location es un mapa con lat/lng
+        final locationMap = data['location'] as Map;
+        if (locationMap.containsKey('latitude') &&
+            locationMap.containsKey('longitude')) {
+          final lat = (locationMap['latitude'] as num).toDouble();
+          final lng = (locationMap['longitude'] as num).toDouble();
+          location = LatLng(lat, lng);
+        }
+      }
+    }
+
     return ServiceRequestModel(
       id: doc.id,
       userId: data['userId'] ?? '',
@@ -71,6 +97,7 @@ class ServiceRequestModel {
       isUrgent: data['isUrgent'] ?? false,
       inClientLocation: data['inClientLocation'] ?? true,
       address: data['address'],
+      location: location,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       scheduledDate:
           data['scheduledDate'] != null
@@ -92,6 +119,10 @@ class ServiceRequestModel {
       'isUrgent': isUrgent,
       'inClientLocation': inClientLocation,
       'address': address,
+      'location':
+          location != null
+              ? GeoPoint(location!.latitude, location!.longitude)
+              : null,
       'createdAt': Timestamp.fromDate(createdAt),
       'scheduledDate':
           scheduledDate != null ? Timestamp.fromDate(scheduledDate!) : null,
@@ -111,6 +142,7 @@ class ServiceRequestModel {
     bool? isUrgent,
     bool? inClientLocation,
     String? address,
+    LatLng? location,
     DateTime? createdAt,
     DateTime? scheduledDate,
     List<String>? photos,
@@ -126,6 +158,7 @@ class ServiceRequestModel {
       isUrgent: isUrgent ?? this.isUrgent,
       inClientLocation: inClientLocation ?? this.inClientLocation,
       address: address ?? this.address,
+      location: location ?? this.location,
       createdAt: createdAt ?? this.createdAt,
       scheduledDate: scheduledDate ?? this.scheduledDate,
       photos: photos ?? this.photos,
