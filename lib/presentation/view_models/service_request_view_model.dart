@@ -1,210 +1,196 @@
 import 'package:flutter/material.dart';
-import '../../data/repositories/technician_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/models/service_request_model.dart';
 import '../common/base_view_model.dart';
-import '../screens/technician/requests/technician_requests_screen.dart';
 
-/// ViewModel para gestionar las solicitudes de servicio
 class ServiceRequestViewModel extends BaseViewModel {
-  final TechnicianRepository _repository = TechnicianRepository();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Listas de solicitudes
-  List<ServiceRequest> _pendingRequests = [];
-  List<ServiceRequest> get pendingRequests => _pendingRequests;
+  List<ServiceRequestModel> _userRequests = [];
+  List<ServiceRequestModel> get userRequests => _userRequests;
 
-  List<ServiceRequest> _acceptedServices = [];
-  List<ServiceRequest> get acceptedServices => _acceptedServices;
+  ServiceRequestModel? _currentRequest;
+  ServiceRequestModel? get currentRequest => _currentRequest;
 
-  List<ServiceRequest> _completedServices = [];
-  List<ServiceRequest> get completedServices => _completedServices;
+  // Load user's service requests
+  Future<void> loadUserServiceRequests() async {
+    return executeAsync<void>(() async {
+      final user = _auth.currentUser;
+      if (user == null) return;
 
-  // Cargar solicitudes pendientes
-  Future<void> loadPendingRequests() async {
-    executeAsync(() async {
-      // Datos simulados para pruebas
-      _pendingRequests = [
-        ServiceRequest(
-          id: '1',
-          clientName: 'María González',
-          category: 'Electricista',
-          description:
-              'No funciona la luz en la cocina, necesito que la reparen urgente.',
-          location: 'Av. Arequipa 456, Arequipa',
-          distance: 2.3,
-          createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
-          budget: 120,
-          isUrgent: true,
-        ),
-        ServiceRequest(
-          id: '2',
-          clientName: 'Pedro Ramírez',
-          category: 'Electricista',
-          description: 'Necesito instalar lámparas en mi sala, son 3 en total.',
-          location: 'Calle Melgar 234, Arequipa',
-          distance: 4.1,
-          createdAt: DateTime.now().subtract(const Duration(minutes: 22)),
-          budget: 80,
-          isUrgent: false,
-        ),
-      ];
+      // Query Firestore for user's requests
+      final snapshot =
+          await _firestore
+              .collection('service_requests')
+              .where('userId', isEqualTo: user.uid)
+              .orderBy('createdAt', descending: true)
+              .get();
 
-      // En la implementación real, obtendríamos los datos del repositorio:
-      // final data = await _repository.getPendingRequests();
-      // Procesaríamos los datos para crear la lista de solicitudes
+      // Convert to model objects
+      _userRequests =
+          snapshot.docs
+              .map((doc) => ServiceRequestModel.fromFirestore(doc))
+              .toList();
+
+      // If Firestore is empty or not yet set up, use mock data
+      if (_userRequests.isEmpty) {
+        _userRequests = _getMockRequests(user.uid);
+      }
     });
   }
 
-  // Cargar servicios aceptados
-  Future<void> loadAcceptedServices() async {
-    executeAsync(() async {
-      // Datos simulados para pruebas
-      _acceptedServices = [
-        ServiceRequest(
-          id: '3',
-          clientName: 'Juan Pérez',
-          category: 'Técnico PC',
-          description:
-              'Mi computadora se reinicia constantemente, necesito un diagnóstico y reparación.',
-          location: 'Urb. Los Ángeles, Calle 5, Arequipa',
-          distance: 3.5,
-          createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-          budget: 150,
-          isUrgent: false,
-          acceptedAt: DateTime.now().subtract(const Duration(hours: 2)),
-          scheduledDate: DateTime.now().add(const Duration(days: 1, hours: 15)),
-        ),
-      ];
+  // Get a specific service request by ID
+  Future<void> getServiceRequestById(String requestId) async {
+    return executeAsync<void>(() async {
+      // First check if it's already in the loaded requests
+      _currentRequest = _userRequests.firstWhere(
+        (request) => request.id == requestId,
+        orElse: () => _findMockRequestById(requestId),
+      );
 
-      // En la implementación real, obtendríamos los datos del repositorio:
-      // final data = await _repository.getAcceptedServices();
-      // Procesaríamos los datos para crear la lista de servicios
+      // If not found locally, query Firestore
+      if (_currentRequest == null) {
+        try {
+          final doc =
+              await _firestore
+                  .collection('service_requests')
+                  .doc(requestId)
+                  .get();
+
+          if (doc.exists) {
+            _currentRequest = ServiceRequestModel.fromFirestore(doc);
+          }
+        } catch (e) {
+          print('Error fetching request: $e');
+          setError('Error al cargar la solicitud: $e');
+        }
+      }
     });
   }
 
-  // Cargar servicios completados
-  Future<void> loadCompletedServices() async {
-    executeAsync(() async {
-      // Datos simulados para pruebas
-      _completedServices = [
-        ServiceRequest(
-          id: '4',
-          clientName: 'Ana Suárez',
-          category: 'Electricista',
-          description: 'Cortocircuito en el dormitorio, reparado exitosamente.',
-          location: 'Av. Kennedy 789, Arequipa',
-          distance: 1.8,
-          createdAt: DateTime.now().subtract(const Duration(days: 2)),
-          budget: 100,
-          isUrgent: true,
-          acceptedAt: DateTime.now().subtract(
-            const Duration(days: 2, hours: 1),
-          ),
-          completedAt: DateTime.now().subtract(const Duration(days: 1)),
-          rating: 5.0,
-          review: 'Excelente servicio, muy profesional y puntual.',
-        ),
-        ServiceRequest(
-          id: '5',
-          clientName: 'Roberto Gómez',
-          category: 'Técnico PC',
-          description:
-              'Formateo e instalación de Windows, actualización de drivers.',
-          location: 'Urb. Santa María, Arequipa',
-          distance: 5.3,
-          createdAt: DateTime.now().subtract(const Duration(days: 4)),
-          budget: 120,
-          isUrgent: false,
-          acceptedAt: DateTime.now().subtract(
-            const Duration(days: 4, hours: 2),
-          ),
-          completedAt: DateTime.now().subtract(const Duration(days: 3)),
-          rating: 4.5,
-          review: 'Buen trabajo, recomendado.',
-        ),
-      ];
+  // Create a new service request
+  Future<void> createServiceRequest(ServiceRequestModel request) async {
+    return executeAsync<void>(() async {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Usuario no autenticado');
 
-      // En la implementación real, obtendríamos los datos del repositorio:
-      // final data = await _repository.getCompletedServices();
-      // Procesaríamos los datos para crear la lista de servicios
-    });
-  }
+      // For now, simulate Firestore operation
+      // In production, this would write to Firestore
 
-  // Aceptar una solicitud
-  Future<void> acceptRequest(String requestId) async {
-    executeAsync(() async {
-      // Encontrar la solicitud
-      final request = _pendingRequests.firstWhere((req) => req.id == requestId);
-
-      // Crear nueva solicitud con los datos actualizados
-      final updatedRequest = ServiceRequest(
-        id: request.id,
-        clientName: request.clientName,
-        category: request.category,
+      // Add request with user ID
+      final newRequest = ServiceRequestModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: user.uid,
+        title: request.title,
         description: request.description,
-        location: request.location,
-        distance: request.distance,
-        createdAt: request.createdAt,
-        budget: request.budget,
+        categoryIds: request.categoryIds,
         isUrgent: request.isUrgent,
-        acceptedAt: DateTime.now(),
-        scheduledDate: DateTime.now().add(const Duration(days: 1)),
+        inClientLocation: request.inClientLocation,
+        address: request.address,
+        createdAt: DateTime.now(),
+        scheduledDate: request.scheduledDate,
+        photos: request.photos,
+        status: 'pending',
       );
 
-      // Actualizar listas
-      _pendingRequests.removeWhere((req) => req.id == requestId);
-      _acceptedServices.add(updatedRequest);
+      // Add to local list
+      _userRequests.insert(0, newRequest);
 
-      // En la implementación real, actualizaríamos en el repositorio:
-      // await _repository.acceptRequest(requestId);
-
-      notifyListeners();
+      // In production:
+      // await _firestore.collection('service_requests').add(newRequest.toFirestore());
     });
   }
 
-  // Rechazar una solicitud
-  Future<void> rejectRequest(String requestId) async {
-    executeAsync(() async {
-      // Actualizar lista
-      _pendingRequests.removeWhere((req) => req.id == requestId);
+  // Cancel a service request
+  Future<void> cancelServiceRequest(String requestId) async {
+    return executeAsync<void>(() async {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Usuario no autenticado');
 
-      // En la implementación real, actualizaríamos en el repositorio:
-      // await _repository.rejectRequest(requestId);
+      // Find the request to cancel
+      final index = _userRequests.indexWhere((r) => r.id == requestId);
+      if (index == -1) throw Exception('Solicitud no encontrada');
 
-      notifyListeners();
+      // Update status to cancelled
+      final updatedRequest = _userRequests[index].copyWith(status: 'cancelled');
+      _userRequests[index] = updatedRequest;
+
+      // In production:
+      // await _firestore
+      //   .collection('service_requests')
+      //   .doc(requestId)
+      //   .update({'status': 'cancelled'});
     });
   }
 
-  // Completar un servicio
-  Future<void> completeService(String serviceId) async {
-    executeAsync(() async {
-      // Encontrar el servicio
-      final service = _acceptedServices.firstWhere(
-        (req) => req.id == serviceId,
-      );
+  // Mock data for testing - will be replaced with Firestore data
+  List<ServiceRequestModel> _getMockRequests(String userId) {
+    return [
+      ServiceRequestModel(
+        id: '1',
+        userId: userId,
+        title: 'Reparación de refrigerador',
+        description: 'Mi refrigerador no enfría correctamente desde ayer',
+        categoryIds: ['8'], // Refrigeración
+        isUrgent: true,
+        inClientLocation: true,
+        address: 'Av. Arequipa 123, Arequipa',
+        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+        status: 'pending',
+        proposalCount: 0,
+      ),
+      ServiceRequestModel(
+        id: '2',
+        userId: userId,
+        title: 'Instalación de interruptores',
+        description: 'Necesito instalar 3 interruptores nuevos en mi sala',
+        categoryIds: ['1'], // Electricista
+        isUrgent: false,
+        inClientLocation: true,
+        address: 'Calle Los Arces 456, Arequipa',
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        status: 'pending',
+        proposalCount: 2,
+      ),
+      ServiceRequestModel(
+        id: '3',
+        userId: userId,
+        title: 'Formateo de laptop',
+        description:
+            'Mi laptop está muy lenta, necesito formatearla e instalar Windows 10',
+        categoryIds: ['5'], // Técnico PC
+        isUrgent: false,
+        inClientLocation: false,
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        status: 'accepted',
+        proposalCount: 3,
+      ),
+      ServiceRequestModel(
+        id: '4',
+        userId: userId,
+        title: 'Reparación de fuga de agua',
+        description:
+            'Tengo una fuga en el baño que necesita reparación urgente',
+        categoryIds: ['3'], // Plomero
+        isUrgent: true,
+        inClientLocation: true,
+        address: 'Urb. El Palacio 789, Arequipa',
+        createdAt: DateTime.now().subtract(const Duration(days: 5)),
+        status: 'completed',
+        proposalCount: 4,
+      ),
+    ];
+  }
 
-      // Crear nuevo servicio con los datos actualizados
-      final updatedService = ServiceRequest(
-        id: service.id,
-        clientName: service.clientName,
-        category: service.category,
-        description: service.description,
-        location: service.location,
-        distance: service.distance,
-        createdAt: service.createdAt,
-        budget: service.budget,
-        isUrgent: service.isUrgent,
-        acceptedAt: service.acceptedAt,
-        scheduledDate: service.scheduledDate,
-        completedAt: DateTime.now(),
-      );
-
-      // Actualizar listas
-      _acceptedServices.removeWhere((req) => req.id == serviceId);
-      _completedServices.add(updatedService);
-
-      // En la implementación real, actualizaríamos en el repositorio:
-      // await _repository.completeService(serviceId);
-
-      notifyListeners();
-    });
+  // Find a mock request by ID
+  ServiceRequestModel _findMockRequestById(String requestId) {
+    final user = _auth.currentUser;
+    final mockRequests = _getMockRequests(user?.uid ?? '');
+    return mockRequests.firstWhere(
+      (request) => request.id == requestId,
+      orElse: () => mockRequests.first,
+    );
   }
 }

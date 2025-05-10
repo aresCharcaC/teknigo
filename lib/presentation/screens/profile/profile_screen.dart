@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../view_models/auth_view_model.dart';
-import '../../view_models/profile_view_model.dart';
-import '../../widgets/custom_text_field.dart';
+import 'package:teknigo/presentation/view_models/auth_view_model.dart';
+import 'package:teknigo/presentation/view_models/profile_view_model.dart';
+import 'package:teknigo/presentation/widgets/custom_text_field.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);

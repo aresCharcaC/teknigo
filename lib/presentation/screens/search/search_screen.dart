@@ -1,11 +1,10 @@
 // lib/presentation/screens/search/search_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/models/technician_search_model.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../view_models/search_view_model.dart';
 import '../../view_models/category_view_model.dart';
 import '../../widgets/technician_list_item.dart';
+import 'package:teknigo/presentation/view_models/search_view_model.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialCategory; // Para cuando se llega desde una categoría
@@ -324,14 +323,18 @@ class _SearchScreenState extends State<SearchScreen> {
                 context,
                 listen: false,
               );
-              final cat = categoryViewModel.categories.firstWhere(
-                (c) => c.id == category,
-                orElse: () => null,
-              );
-              if (cat != null) {
-                categoryName = cat.name;
+
+              // Evitamos usar firstWhere completamente
+              for (var cat in categoryViewModel.categories) {
+                if (cat.id == category) {
+                  categoryName = cat.name;
+                  break;
+                }
               }
-            } catch (_) {}
+            } catch (_) {
+              // Si hay algún problema, mantén el ID como nombre
+              categoryName = category;
+            }
 
             return Chip(
               label: Text(categoryName),

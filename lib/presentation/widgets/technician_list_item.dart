@@ -1,6 +1,6 @@
 // lib/presentation/widgets/technician_list_item.dart
 import 'package:flutter/material.dart';
-import '../../../core/models/technician_search_model.dart';
+import 'package:teknigo/core/models/technician_search_model.dart';
 
 class TechnicianListItem extends StatelessWidget {
   final TechnicianSearchModel technician;

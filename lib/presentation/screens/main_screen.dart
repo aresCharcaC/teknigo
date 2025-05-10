@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../widgets/custom_drawer.dart';
-import '../view_models/auth_view_model.dart';
-import '../view_models/category_view_model.dart';
-import '../view_models/technician_view_model.dart';
-import '../../core/constants/app_constants.dart';
+import 'package:teknigo/presentation/widgets/custom_drawer.dart';
+import 'package:teknigo/presentation/view_models/auth_view_model.dart';
+import 'package:teknigo/presentation/view_models/category_view_model.dart';
+import 'package:teknigo/presentation/view_models/technician_view_model.dart';
+import 'package:teknigo/core/constants/app_constants.dart';
 import 'home/home_screen.dart';
 import 'search/search_screen.dart';
 import 'technician/technician_mode_screen.dart';
