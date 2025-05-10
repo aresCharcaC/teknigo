@@ -47,27 +47,34 @@ class RequestCard extends StatelessWidget {
       print("Dialog result: $confirmed");
 
       if (confirmed == true) {
+        // Store context for later use
+        final scaffoldContext = ScaffoldMessenger.of(context);
+
         // Show loading indicator
+        BuildContext? dialogContext;
         if (context.mounted) {
           showDialog(
             context: context,
             barrierDismissible: false,
-            builder:
-                (loadingContext) =>
-                    const Center(child: CircularProgressIndicator()),
+            builder: (context) {
+              dialogContext = context;
+              return const Center(child: CircularProgressIndicator());
+            },
           );
         }
 
         print("Calling deleteServiceRequest");
         final result = await viewModel.deleteServiceRequest(requestId);
 
-        // Close loading indicator
-        if (context.mounted) Navigator.pop(context);
+        // Close loading indicator - IMPORTANT FIX: Only try to pop if context is still mounted
+        if (dialogContext != null && Navigator.canPop(dialogContext!)) {
+          Navigator.pop(dialogContext!);
+        }
 
-        if (context.mounted) {
+        if (scaffoldContext.mounted) {
           if (result.isSuccess) {
             print("Delete successful, showing success message");
-            ScaffoldMessenger.of(context).showSnackBar(
+            scaffoldContext.showSnackBar(
               const SnackBar(
                 content: Text('Solicitud eliminada correctamente'),
                 behavior: SnackBarBehavior.floating,
@@ -78,7 +85,7 @@ class RequestCard extends StatelessWidget {
             viewModel.reloadRequests();
           } else {
             print("Delete failed: ${result.error}");
-            ScaffoldMessenger.of(context).showSnackBar(
+            scaffoldContext.showSnackBar(
               SnackBar(
                 content: Text(
                   'Error al eliminar la solicitud: ${result.error}',
@@ -91,9 +98,13 @@ class RequestCard extends StatelessWidget {
       }
     } catch (e) {
       print("Exception in _confirmDelete: $e");
-      // Close loading indicator on error
+      // Close any open dialogs by popping to first route
       if (context.mounted) {
-        Navigator.popUntil(context, (route) => route.isFirst);
+        // Use a safer approach to dismiss dialogs
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).popUntil((route) => route.isFirst);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
