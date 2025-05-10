@@ -1,10 +1,10 @@
 // lib/presentation/screens/home/components/request_utils.dart
 import 'package:flutter/material.dart';
 
-/// Clase de utilidades para Solicitudes
-/// Contiene métodos estáticos para formatear fechas y obtener colores según el estado
+/// Utility class for Requests
+/// Contains static methods to format dates and get colors based on status
 class RequestUtils {
-  // Obtener color según el estado de la solicitud
+  // Get color based on request status
   static Color getStatusColor(String status) {
     switch (status) {
       case 'pending':
@@ -20,7 +20,7 @@ class RequestUtils {
     }
   }
 
-  // Obtener texto según el estado de la solicitud
+  // Get text based on request status
   static String getStatusText(String status) {
     switch (status) {
       case 'pending':
@@ -36,7 +36,7 @@ class RequestUtils {
     }
   }
 
-  // Formatear fecha como tiempo relativo
+  // Format date as relative time
   static String formatDate(DateTime date) {
     final difference = DateTime.now().difference(date);
 
@@ -51,7 +51,7 @@ class RequestUtils {
     }
   }
 
-  // Formatear fecha completa
+  // Format full date
   static String formatFullDate(DateTime date) {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');

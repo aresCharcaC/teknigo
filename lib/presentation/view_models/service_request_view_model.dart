@@ -1,5 +1,6 @@
 // lib/presentation/view_models/service_request_view_model.dart
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/models/service_request_model.dart';
@@ -17,58 +18,110 @@ class ServiceRequestViewModel extends BaseViewModel {
   ServiceRequestModel? _currentRequest;
   ServiceRequestModel? get currentRequest => _currentRequest;
 
-  // Stream para escuchar cambios en tiempo real
+  // Stream subscription for real-time updates
   Stream<List<ServiceRequestModel>>? _requestsStream;
+  StreamSubscription? _requestsSubscription;
 
-  // Constructor que inicia la escucha
+  // Constructor to start listener
   ServiceRequestViewModel() {
-    // Iniciar escucha en tiempo real si hay un usuario autenticado
+    print("ServiceRequestViewModel initialized");
+    // Start real-time listener if there's an authenticated user
     if (_auth.currentUser != null) {
       _startRequestsListener();
     }
-  }
 
-  // Iniciar escucha en tiempo real
-  void _startRequestsListener() {
-    _requestsStream = _repository.getUserRequestsStream();
-
-    // Suscribirse al stream
-    _requestsStream?.listen(
-      (requests) {
-        _userRequests = requests;
+    // Listen for auth state changes to restart the listener if needed
+    _auth.authStateChanges().listen((User? user) {
+      if (user != null) {
+        _startRequestsListener();
+      } else {
+        // Cancel subscription if user logs out
+        _cancelSubscription();
+        _userRequests = [];
         notifyListeners();
-      },
-      onError: (error) {
-        print('Error en el stream de solicitudes: $error');
-        setError('Error al cargar solicitudes: $error');
-      },
-    );
+      }
+    });
   }
 
-  // Load user's service requests (carga inicial)
+  // Cancel current subscription if exists
+  void _cancelSubscription() {
+    print("Canceling subscription");
+    if (_requestsSubscription != null) {
+      _requestsSubscription!.cancel();
+      _requestsSubscription = null;
+    }
+  }
+
+  // Start real-time listener
+  void _startRequestsListener() {
+    try {
+      print("Starting requests listener");
+      // Cancel existing subscription if any
+      _cancelSubscription();
+
+      // Get the stream
+      _requestsStream = _repository.getUserRequestsStream();
+
+      // Subscribe to the stream
+      _requestsSubscription = _requestsStream?.listen(
+        (requests) {
+          print("Stream update received: ${requests.length} requests");
+          _userRequests = requests;
+          setLoaded(); // Ensure the loading state is updated
+          notifyListeners();
+        },
+        onError: (error) {
+          print('Error in service requests stream: $error');
+          setError('Error al cargar solicitudes: $error');
+        },
+      );
+
+      print("Requests listener started");
+    } catch (e) {
+      print('Error starting requests listener: $e');
+      setError('Error al iniciar escucha de solicitudes: $e');
+    }
+  }
+
+  // Explicitly reload requests - call this when returning to the screen
+  Future<void> reloadRequests() async {
+    print("Reloading requests explicitly");
+    setLoading();
+
+    try {
+      // First try to get requests once
+      final requests = await _repository.getUserRequests();
+      _userRequests = requests;
+
+      // Then restart the listener for real-time updates
+      _startRequestsListener();
+
+      setLoaded();
+    } catch (e) {
+      print('Error reloading requests: $e');
+      setError('Error al recargar solicitudes: $e');
+    }
+  }
+
+  // Load user's service requests (initial load)
   Future<void> loadUserServiceRequests() async {
+    print("Loading user service requests");
     return executeAsync<void>(() async {
       final user = _auth.currentUser;
       if (user == null) {
-        print('No hay usuario autenticado para cargar solicitudes');
+        print('No authenticated user to load requests');
         return;
       }
 
-      // Obtener solicitudes desde Firebase
+      // Get requests from Firebase
       final requests = await _repository.getUserRequests();
 
-      // Verificar si se obtuvieron solicitudes
-      if (requests.isNotEmpty) {
-        _userRequests = requests;
-        print('Solicitudes cargadas correctamente: ${_userRequests.length}');
-      } else {
-        print('No se encontraron solicitudes para el usuario ${user.uid}');
-        // No usamos datos de prueba si no hay solicitudes reales
-        _userRequests = [];
-      }
+      // Check if requests were obtained
+      _userRequests = requests;
+      print('Successfully loaded ${_userRequests.length} requests');
 
-      // Iniciar escucha en tiempo real si no se ha iniciado
-      if (_requestsStream == null) {
+      // Start real-time listener if not already started
+      if (_requestsSubscription == null) {
         _startRequestsListener();
       }
     });
@@ -76,8 +129,9 @@ class ServiceRequestViewModel extends BaseViewModel {
 
   // Get a specific service request by ID
   Future<void> getServiceRequestById(String requestId) async {
+    print("Getting request by ID: $requestId");
     return executeAsync<void>(() async {
-      // Primero verificar si ya está en las solicitudes cargadas
+      // First check if it's already in the loaded requests
       _currentRequest = _userRequests.firstWhere(
         (request) => request.id == requestId,
         orElse:
@@ -94,15 +148,15 @@ class ServiceRequestViewModel extends BaseViewModel {
             ),
       );
 
-      // Si no se encontró localmente o es una solicitud vacía, consultar Firebase
+      // If not found locally or it's an empty request, query Firebase
       if (_currentRequest!.id.isEmpty) {
         final request = await _repository.getRequestById(requestId);
         if (request != null) {
           _currentRequest = request;
-          print('Solicitud cargada desde Firebase: ${request.id}');
+          print('Request loaded from Firebase: ${request.id}');
         } else {
-          print('No se encontró la solicitud en Firebase: $requestId');
-          setError('No se encontró la solicitud');
+          print('Request not found in Firebase: $requestId');
+          setError('Request not found');
         }
       }
     });
@@ -114,6 +168,7 @@ class ServiceRequestViewModel extends BaseViewModel {
     List<File>? photos,
   ) async {
     try {
+      print("Creating service request");
       setLoading();
 
       final user = _auth.currentUser;
@@ -122,22 +177,23 @@ class ServiceRequestViewModel extends BaseViewModel {
         return Resource.error('Usuario no autenticado');
       }
 
-      // Crear una solicitud con el ID de usuario actual
+      // Create a request with the current user ID
       final newRequest = request.copyWith(userId: user.uid);
 
-      // Enviar al repositorio con las fotos
+      // Send to repository with photos
       final requestId = await _repository.createServiceRequest(
         newRequest,
         photos,
       );
 
       if (requestId != null) {
-        // Cargar la solicitud creada con el ID asignado
+        // Add to local list (although the stream should update it soon)
         final createdRequest = newRequest.copyWith(id: requestId);
-
-        // Actualizar la lista local (aunque el stream debería actualizarla pronto)
-        _userRequests.insert(0, createdRequest);
+        _userRequests = [createdRequest, ..._userRequests];
         notifyListeners();
+
+        // Explicitly reload to ensure we get the latest data
+        _reloadAfterDelay();
 
         setLoaded();
         return Resource.success(requestId);
@@ -152,9 +208,17 @@ class ServiceRequestViewModel extends BaseViewModel {
     }
   }
 
-  // Cancel a service request
-  Future<Resource<bool>> cancelServiceRequest(String requestId) async {
+  // Helper to reload data after a short delay
+  Future<void> _reloadAfterDelay() async {
+    // Wait a short time to allow Firestore to update
+    await Future.delayed(const Duration(milliseconds: 1000));
+    loadUserServiceRequests();
+  }
+
+  // Delete a service request completely (including photos)
+  Future<Resource<bool>> deleteServiceRequest(String requestId) async {
     try {
+      print("Deleting service request: $requestId");
       setLoading();
 
       final user = _auth.currentUser;
@@ -163,33 +227,32 @@ class ServiceRequestViewModel extends BaseViewModel {
         return Resource.error('Usuario no autenticado');
       }
 
-      // Enviar al repositorio
-      final success = await _repository.cancelRequest(requestId);
+      // Send to repository for complete deletion
+      final success = await _repository.deleteRequest(requestId);
 
       if (success) {
-        // Actualizar la lista local (aunque el stream debería actualizarla pronto)
-        final index = _userRequests.indexWhere((r) => r.id == requestId);
-        if (index != -1) {
-          _userRequests[index] = _userRequests[index].copyWith(
-            status: 'cancelled',
-          );
+        print("Delete request successful, updating local data");
+        // Remove from local list
+        _userRequests.removeWhere((request) => request.id == requestId);
 
-          // Si la solicitud actual es la que se está cancelando, actualizarla también
-          if (_currentRequest != null && _currentRequest!.id == requestId) {
-            _currentRequest = _currentRequest!.copyWith(status: 'cancelled');
-          }
-
-          notifyListeners();
+        // Clear current request if it's the one being deleted
+        if (_currentRequest != null && _currentRequest!.id == requestId) {
+          _currentRequest = null;
         }
+
+        notifyListeners();
+
+        // Explicitly reload after a short delay to ensure we get the latest data
+        _reloadAfterDelay();
 
         setLoaded();
         return Resource.success(true);
       } else {
-        setError('Error al cancelar la solicitud');
-        return Resource.error('Error al cancelar la solicitud');
+        setError('Error al eliminar la solicitud');
+        return Resource.error('Error al eliminar la solicitud');
       }
     } catch (e) {
-      final errorMsg = 'Error al cancelar solicitud: $e';
+      final errorMsg = 'Error al eliminar solicitud: $e';
       setError(errorMsg);
       return Resource.error(errorMsg);
     }
@@ -197,8 +260,9 @@ class ServiceRequestViewModel extends BaseViewModel {
 
   @override
   void dispose() {
-    // Limpiar recursos al destruir el ViewModel
-    _requestsStream = null;
+    // Clean up resources when destroying the ViewModel
+    print("ServiceRequestViewModel disposed");
+    _cancelSubscription();
     super.dispose();
   }
 }

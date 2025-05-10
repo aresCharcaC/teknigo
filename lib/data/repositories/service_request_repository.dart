@@ -11,42 +11,52 @@ class ServiceRequestRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // Crear una nueva solicitud de servicio
+  // Collection name for service requests - using a constant for consistency
+  final String _collectionName = 'service_requests';
+
+  // Create a new service request
   Future<String?> createServiceRequest(
     ServiceRequestModel request,
     List<File>? photos,
   ) async {
     try {
-      // Obtener usuario actual
+      print("Repository: Creating service request");
+      // Get current user
       final user = _auth.currentUser;
-      if (user == null) return null;
+      if (user == null) {
+        print("Repository: No authenticated user");
+        return null;
+      }
 
-      // Preparar datos base para la solicitud
+      // Prepare base data for the request
       Map<String, dynamic> requestData = request.toFirestore();
 
-      // Asegurarse de que el ID de usuario sea el correcto
+      // Make sure the user ID is correct
       requestData['userId'] = user.uid;
 
-      // Si hay fotos, subirlas primero
+      // If there are photos, upload them first
       if (photos != null && photos.isNotEmpty) {
+        print("Repository: Uploading ${photos.length} photos");
         final photoUrls = await _uploadPhotos(user.uid, photos);
         if (photoUrls.isNotEmpty) {
           requestData['photos'] = photoUrls;
         }
       }
 
-      // Crear la solicitud en Firestore
-      final docRef = await _firestore.collection('services').add(requestData);
-      print('Solicitud creada con ID: ${docRef.id}');
+      // Create the request in Firestore
+      final docRef = await _firestore
+          .collection(_collectionName)
+          .add(requestData);
+      print('Repository: Request created with ID: ${docRef.id}');
 
       return docRef.id;
     } catch (e) {
-      print('Error al crear solicitud: $e');
+      print('Repository: Error creating request: $e');
       return null;
     }
   }
 
-  // Subir fotos al Storage
+  // Upload photos to Storage
   Future<List<String>> _uploadPhotos(String userId, List<File> photos) async {
     List<String> photoUrls = [];
 
@@ -54,55 +64,56 @@ class ServiceRequestRepository {
       for (var i = 0; i < photos.length; i++) {
         final file = photos[i];
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final path = 'service_images/$userId/$timestamp-$i.jpg';
+        final path =
+            '${AppConstants.serviceImagesPath}/$userId/$timestamp-$i.jpg';
 
-        // Subir archivo
+        // Upload file
         final uploadTask = _storage.ref().child(path).putFile(file);
 
-        // Mostrar progreso si lo necesitas
+        // Show progress if needed
         uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
           final progress = snapshot.bytesTransferred / snapshot.totalBytes;
           print(
-            'Progreso de subida $i: ${(progress * 100).toStringAsFixed(2)}%',
+            'Repository: Upload progress $i: ${(progress * 100).toStringAsFixed(2)}%',
           );
         });
 
-        // Esperar a que termine la subida
+        // Wait for upload to complete
         final snapshot = await uploadTask;
 
-        // Obtener URL
+        // Get URL
         final url = await snapshot.ref.getDownloadURL();
         photoUrls.add(url);
 
-        print('Foto $i subida exitosamente: $url');
+        print('Repository: Photo $i uploaded successfully: $url');
       }
     } catch (e) {
-      print('Error al subir fotos: $e');
+      print('Repository: Error uploading photos: $e');
     }
 
     return photoUrls;
   }
 
-  // Obtener solicitudes del usuario actual
+  // Get current user's requests
   Future<List<ServiceRequestModel>> getUserRequests() async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('No hay usuario autenticado para obtener solicitudes');
+        print('Repository: No authenticated user to get requests');
         return [];
       }
 
-      print('Obteniendo solicitudes para el usuario: ${user.uid}');
+      print('Repository: Getting requests for user: ${user.uid}');
 
-      // Buscar en la colección 'services'
+      // Modified to avoid needing a composite index
+      // We only filter by userId and don't use orderBy
       final snapshot =
           await _firestore
-              .collection('services')
+              .collection(_collectionName)
               .where('userId', isEqualTo: user.uid)
-              .orderBy('createdAt', descending: true)
               .get();
 
-      print('Solicitudes encontradas: ${snapshot.docs.length}');
+      print('Repository: Requests found: ${snapshot.docs.length}');
 
       final requests =
           snapshot.docs
@@ -110,7 +121,7 @@ class ServiceRequestRepository {
                 try {
                   return ServiceRequestModel.fromFirestore(doc);
                 } catch (e) {
-                  print('Error al convertir documento ${doc.id}: $e');
+                  print('Repository: Error converting document ${doc.id}: $e');
                   return null;
                 }
               })
@@ -118,67 +129,119 @@ class ServiceRequestRepository {
               .cast<ServiceRequestModel>()
               .toList();
 
-      print('Solicitudes procesadas correctamente: ${requests.length}');
+      // Sort manually in-memory to avoid needing the index
+      requests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      print('Repository: Requests processed successfully: ${requests.length}');
       return requests;
     } catch (e) {
-      print('Error al obtener solicitudes del usuario: $e');
+      print('Repository: Error getting user requests: $e');
       return [];
     }
   }
 
-  // Escuchar cambios en las solicitudes del usuario actual (en tiempo real)
+  // Listen for changes in user's requests (real-time)
   Stream<List<ServiceRequestModel>> getUserRequestsStream() {
     final user = _auth.currentUser;
     if (user == null) {
+      print('Repository: No authenticated user for stream');
       return Stream.value([]);
     }
 
+    print('Repository: Setting up request stream for user: ${user.uid}');
+
+    // Modified to avoid needing a composite index
+    // Just filter by userId without orderBy
     return _firestore
-        .collection('services')
+        .collection(_collectionName)
         .where('userId', isEqualTo: user.uid)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
-              .map((doc) {
-                try {
-                  return ServiceRequestModel.fromFirestore(doc);
-                } catch (e) {
-                  print('Error al convertir documento en stream ${doc.id}: $e');
-                  return null;
-                }
-              })
-              .where((request) => request != null)
-              .cast<ServiceRequestModel>()
-              .toList();
+          print(
+            'Repository: Stream update - ${snapshot.docs.length} documents',
+          );
+          final requests =
+              snapshot.docs
+                  .map((doc) {
+                    try {
+                      return ServiceRequestModel.fromFirestore(doc);
+                    } catch (e) {
+                      print(
+                        'Repository: Error converting document in stream ${doc.id}: $e',
+                      );
+                      return null;
+                    }
+                  })
+                  .where((request) => request != null)
+                  .cast<ServiceRequestModel>()
+                  .toList();
+
+          // Sort manually in memory
+          requests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          return requests;
         });
   }
 
-  // Cancelar una solicitud
-  Future<bool> cancelRequest(String requestId) async {
+  // Delete a request completely - including all photos
+  Future<bool> deleteRequest(String requestId) async {
     try {
-      await _firestore.collection('services').doc(requestId).update({
-        'status': 'cancelled',
-      });
-      print('Solicitud cancelada correctamente: $requestId');
+      print('Repository: Deleting request completely: $requestId');
+
+      // First, get the request to see if it has photos
+      final doc =
+          await _firestore.collection(_collectionName).doc(requestId).get();
+      if (!doc.exists) {
+        print('Repository: Request does not exist: $requestId');
+        return false;
+      }
+
+      final data = doc.data();
+      if (data == null) {
+        print('Repository: Request data is null: $requestId');
+        return false;
+      }
+
+      // Check if the request has photos and delete them
+      if (data.containsKey('photos') && data['photos'] is List) {
+        final photos = List<String>.from(data['photos']);
+        for (var photoUrl in photos) {
+          try {
+            // Delete from Firebase Storage
+            await _storage.refFromURL(photoUrl).delete();
+            print('Repository: Deleted photo: $photoUrl');
+          } catch (e) {
+            print('Repository: Error deleting photo: $e');
+            // Continue even if photo deletion fails
+          }
+        }
+      }
+
+      // Now delete the document from Firestore
+      await _firestore.collection(_collectionName).doc(requestId).delete();
+      print('Repository: Request deleted successfully: $requestId');
       return true;
     } catch (e) {
-      print('Error al cancelar solicitud: $e');
+      print('Repository: Error deleting request: $e');
       return false;
     }
   }
 
-  // Obtener una solicitud específica
+  // Get a specific request
   Future<ServiceRequestModel?> getRequestById(String requestId) async {
     try {
-      final doc = await _firestore.collection('services').doc(requestId).get();
+      print('Repository: Getting request by ID: $requestId');
+      final doc =
+          await _firestore.collection(_collectionName).doc(requestId).get();
 
       if (doc.exists) {
+        print('Repository: Request found: $requestId');
         return ServiceRequestModel.fromFirestore(doc);
       }
+      print('Repository: Request not found: $requestId');
       return null;
     } catch (e) {
-      print('Error al obtener solicitud: $e');
+      print('Repository: Error getting request: $e');
       return null;
     }
   }

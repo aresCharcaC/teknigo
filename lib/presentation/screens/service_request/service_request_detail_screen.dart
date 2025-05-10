@@ -746,7 +746,7 @@ class _ServiceRequestDetailScreenState
         listen: false,
       );
 
-      await requestViewModel.cancelServiceRequest(requestId);
+      await requestViewModel.deleteServiceRequest(requestId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

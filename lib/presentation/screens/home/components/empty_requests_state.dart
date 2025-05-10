@@ -1,6 +1,7 @@
 // lib/presentation/screens/home/components/empty_requests_state.dart
 import 'package:flutter/material.dart';
 
+/// Widget to display when there are no service requests
 class EmptyRequestsState extends StatelessWidget {
   const EmptyRequestsState({Key? key}) : super(key: key);
 
@@ -21,6 +22,19 @@ class EmptyRequestsState extends StatelessWidget {
             Text(
               'Crea una solicitud para encontrar técnicos',
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () {
+                // Scroll to the top of the screen to focus on the request form
+                Scrollable.ensureVisible(
+                  context,
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                );
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Crear solicitud'),
             ),
           ],
         ),

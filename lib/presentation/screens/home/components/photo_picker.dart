@@ -27,6 +27,11 @@ class _PhotoPickerState extends State<PhotoPicker> {
   @override
   void initState() {
     super.initState();
+    // Check if there are any photos passed from outside
+    if (widget.onFilesSelected != null) {
+      // Notify parent about initial files if any
+      widget.onFilesSelected!(_selectedFiles);
+    }
   }
 
   void _pickImages(BuildContext context) {
@@ -68,7 +73,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
       );
 
       if (photo != null) {
-        // Validar el número máximo de imágenes
+        // Validate maximum number of images
         if (_selectedFiles.length + widget.photoUrls.length >=
             AppConstants.maxImagesPerService) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -86,7 +91,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
           _selectedFiles.add(File(photo.path));
         });
 
-        // Notificar al padre sobre los nuevos archivos
+        // Notify parent about new files
         if (widget.onFilesSelected != null) {
           widget.onFilesSelected!(_selectedFiles);
         }
@@ -110,7 +115,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
       );
 
       if (images != null && images.isNotEmpty) {
-        // Validar el número máximo de imágenes
+        // Validate maximum number of images
         if (_selectedFiles.length + widget.photoUrls.length + images.length >
             AppConstants.maxImagesPerService) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -122,7 +127,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
             ),
           );
 
-          // Añadir solo las imágenes que entren en el límite
+          // Add only the images that fit within the limit
           final remaining =
               AppConstants.maxImagesPerService -
               (_selectedFiles.length + widget.photoUrls.length);
@@ -134,7 +139,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
               }
             });
 
-            // Notificar al padre sobre los nuevos archivos
+            // Notify parent about new files
             if (widget.onFilesSelected != null) {
               widget.onFilesSelected!(_selectedFiles);
             }
@@ -148,7 +153,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
           }
         });
 
-        // Notificar al padre sobre los nuevos archivos
+        // Notify parent about new files
         if (widget.onFilesSelected != null) {
           widget.onFilesSelected!(_selectedFiles);
         }
@@ -169,7 +174,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
       _selectedFiles.removeAt(index);
     });
 
-    // Notificar al padre sobre los archivos actualizados
+    // Notify parent about updated files
     if (widget.onFilesSelected != null) {
       widget.onFilesSelected!(_selectedFiles);
     }
@@ -201,7 +206,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
           ],
         ),
 
-        // Mostrar imágenes seleccionadas y existentes
+        // Show selected and existing images
         if (_selectedFiles.isNotEmpty || widget.photoUrls.isNotEmpty) ...[
           const SizedBox(height: 8),
           SizedBox(
@@ -209,7 +214,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                // Mostrar fotos existentes
+                // Show existing photos
                 ...widget.photoUrls.asMap().entries.map((entry) {
                   final index = entry.key;
                   final url = entry.value;
@@ -260,7 +265,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
                   );
                 }),
 
-                // Mostrar archivos locales seleccionados
+                // Show locally selected files
                 ..._selectedFiles.asMap().entries.map((entry) {
                   final index = entry.key;
                   final file = entry.value;

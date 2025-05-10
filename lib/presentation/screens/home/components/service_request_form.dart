@@ -1,4 +1,5 @@
 // lib/presentation/screens/home/components/service_request_form.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -25,32 +26,53 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
-  final LocationService _locationService = LocationService();
-  final MapsService _mapsService = MapsService();
+  late final LocationService _locationService;
+  late final MapsService _mapsService;
 
-  List<String> _selectedCategories = [];
-  bool _isUrgent = false;
-  bool _inClientLocation = true;
-  DateTime? _scheduledDate;
-  TimeOfDay? _scheduledTime;
-  List<String> _photoUrls = [];
-  LatLng? _selectedLocation;
+  // Use ValueNotifier instead of setState for each field that needs to be reactive
+  final _selectedCategories = ValueNotifier<List<String>>([]);
+  final _isUrgent = ValueNotifier<bool>(false);
+  final _inClientLocation = ValueNotifier<bool>(true);
+  final _scheduledDate = ValueNotifier<DateTime?>(null);
+  final _scheduledTime = ValueNotifier<TimeOfDay?>(null);
+  final _photoUrls = ValueNotifier<List<String>>([]);
+  final _photoFiles = ValueNotifier<List<File>>([]);
+  final _selectedLocation = ValueNotifier<LatLng?>(null);
+  final _isSubmitting = ValueNotifier<bool>(false);
 
-  bool _isSubmitting = false;
+  @override
+  void initState() {
+    super.initState();
+    _locationService = LocationService();
+    _mapsService = MapsService();
+  }
 
   @override
   void dispose() {
+    // Clean up all controllers and listeners
     _titleController.dispose();
     _descriptionController.dispose();
     _addressController.dispose();
+
+    // Dispose all value notifiers
+    _selectedCategories.dispose();
+    _isUrgent.dispose();
+    _inClientLocation.dispose();
+    _scheduledDate.dispose();
+    _scheduledTime.dispose();
+    _photoUrls.dispose();
+    _photoFiles.dispose();
+    _selectedLocation.dispose();
+    _isSubmitting.dispose();
+
     super.dispose();
   }
 
-  // Submit the form
+  // Submit the form - No setState calls
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      // Validar campos requeridos según la ubicación
-      if (_inClientLocation && _addressController.text.trim().isEmpty) {
+      // Validate required fields based on location
+      if (_inClientLocation.value && _addressController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -62,7 +84,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         return;
       }
 
-      if (_selectedCategories.isEmpty) {
+      if (_selectedCategories.value.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Selecciona al menos una categoría'),
@@ -72,12 +94,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         return;
       }
 
-      setState(() {
-        _isSubmitting = true;
-      });
+      _isSubmitting.value = true;
 
       try {
-        // Obtener usuario actual
+        // Get current user
         final authViewModel = Provider.of<AuthViewModel>(
           context,
           listen: false,
@@ -89,116 +109,122 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           throw Exception('Usuario no autenticado');
         }
 
-        // Crear objeto de solicitud de servicio
+        // Create service request object
         final serviceRequest = ServiceRequestModel.create(
           userId: userId,
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
-          categoryIds: _selectedCategories,
-          isUrgent: _isUrgent,
-          inClientLocation: _inClientLocation,
-          address: _inClientLocation ? _addressController.text.trim() : null,
-          location: _inClientLocation ? _selectedLocation : null,
-          scheduledDate: _scheduledDate,
-          photos: _photoUrls,
+          categoryIds: _selectedCategories.value,
+          isUrgent: _isUrgent.value,
+          inClientLocation: _inClientLocation.value,
+          address:
+              _inClientLocation.value ? _addressController.text.trim() : null,
+          location: _inClientLocation.value ? _selectedLocation.value : null,
+          scheduledDate: _scheduledDate.value,
+          photos: _photoUrls.value.isEmpty ? null : _photoUrls.value,
         );
 
-        // Acceder al ViewModel para crear la solicitud
+        // Access the ViewModel to create the request
         final requestViewModel = Provider.of<ServiceRequestViewModel>(
           context,
           listen: false,
         );
 
-        // Enviar solicitud
+        // Send request with photos
         final result = await requestViewModel.createServiceRequest(
           serviceRequest,
+          _photoFiles.value.isEmpty
+              ? null
+              : _photoFiles.value, // Pass photo files
         );
 
         if (result.isSuccess) {
-          // Resetear formulario
+          // Reset form
           _resetForm();
 
-          // Mostrar mensaje de éxito
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Solicitud creada correctamente'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          // Show success message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Solicitud creada correctamente'),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         } else {
-          // Mostrar mensaje de error
+          // Show error message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: ${result.error}'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        // Show error
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${result.error}'),
+              content: Text('Error al crear la solicitud: $e'),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ),
           );
         }
-      } catch (e) {
-        // Mostrar error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al crear la solicitud: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
       } finally {
-        setState(() {
-          _isSubmitting = false;
-        });
+        if (mounted) {
+          _isSubmitting.value = false;
+        }
       }
     }
   }
 
-  // Reset form
+  // Reset form - No setState calls
   void _resetForm() {
     _titleController.clear();
     _descriptionController.clear();
     _addressController.clear();
-    setState(() {
-      _selectedCategories = [];
-      _isUrgent = false;
-      _inClientLocation = true;
-      _scheduledDate = null;
-      _scheduledTime = null;
-      _photoUrls = [];
-      _selectedLocation = null;
-    });
+
+    _selectedCategories.value = [];
+    _isUrgent.value = false;
+    _inClientLocation.value = true;
+    _scheduledDate.value = null;
+    _scheduledTime.value = null;
+    _photoUrls.value = [];
+    _photoFiles.value = [];
+    _selectedLocation.value = null;
   }
 
-  // Método para obtener la ubicación actual
+  // Get current location - No setState calls
   Future<void> _getCurrentLocation() async {
     try {
-      // Mostrar indicador de carga
+      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      // Obtener ubicación actual
+      // Get current location
       final location = await _mapsService.getCurrentLocation();
 
-      // Cerrar indicador de carga
+      // Close loading indicator
       if (mounted) Navigator.pop(context);
 
-      if (location != null) {
-        setState(() {
-          _selectedLocation = location;
-        });
+      if (location != null && mounted) {
+        _selectedLocation.value = location;
 
-        // Obtener dirección a partir de coordenadas
+        // Get address from coordinates
         final address = await _locationService.getAddressFromLatLng(location);
         if (address != null && mounted) {
-          setState(() {
-            _addressController.text = address;
-          });
+          _addressController.text = address;
         }
       } else {
-        // Mostrar mensaje de error
+        // Show error message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -209,7 +235,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         }
       }
     } catch (e) {
-      // Cerrar indicador de carga si hay error
+      // Close loading indicator on error
       if (mounted) Navigator.pop(context);
 
       print('Error al obtener ubicación: $e');
@@ -225,70 +251,43 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     }
   }
 
-  // Método para abrir el selector de ubicación
+  // Open location picker - No setState calls
   Future<void> _openLocationPicker() async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder:
             (context) => LocationPickerScreen(
-              initialPosition: _selectedLocation,
-              coverageRadius: 5.0, // Radio predeterminado para clientes
+              initialPosition: _selectedLocation.value,
+              coverageRadius: 5.0, // Default radius for clients
             ),
       ),
     );
 
     if (result != null &&
         result.containsKey('position') &&
-        result.containsKey('address')) {
+        result.containsKey('address') &&
+        mounted) {
       final position = result['position'];
       final address = result['address'] as String;
 
-      // Verificar que position es un objeto LatLng
       if (position is LatLng) {
-        setState(() {
-          _selectedLocation = position;
-          _addressController.text = address;
-        });
+        _selectedLocation.value = position;
+        _addressController.text = address;
       }
     }
   }
 
-  // Method to select date if needed
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate:
-          _scheduledDate ?? DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-    );
-
-    if (picked != null && picked != _scheduledDate) {
-      setState(() {
-        _scheduledDate = picked;
-      });
-
-      await _selectTime(context);
-    }
-  }
-
-  // Method to select time if needed
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _scheduledTime ?? TimeOfDay.now(),
-    );
-
-    if (picked != null && picked != _scheduledTime) {
-      setState(() {
-        _scheduledTime = picked;
-      });
+  // Handle photo selection - No setState calls
+  void _handlePhotosSelected(List<File> photos) {
+    if (mounted) {
+      _photoFiles.value = photos;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Using ValueListenableBuilder to rebuild only the parts that change
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -352,7 +351,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
               const SizedBox(height: 16),
 
-              // Category selector
+              // Category selector with ValueListenableBuilder
               const Text(
                 'Categorías',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -360,29 +359,35 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
               const SizedBox(height: 8),
 
-              CategorySelector(
-                selectedCategories: _selectedCategories,
-                onCategoriesChanged: (categories) {
-                  setState(() {
-                    _selectedCategories = categories;
-                  });
+              ValueListenableBuilder<List<String>>(
+                valueListenable: _selectedCategories,
+                builder: (context, selectedCategories, child) {
+                  return CategorySelector(
+                    selectedCategories: selectedCategories,
+                    onCategoriesChanged: (categories) {
+                      _selectedCategories.value = categories;
+                    },
+                  );
                 },
               ),
 
               const SizedBox(height: 16),
 
-              // Urgency checkbox
-              CheckboxListTile(
-                title: const Text('Urgente (solicito servicio para hoy)'),
-                value: _isUrgent,
-                onChanged: (value) {
-                  setState(() {
-                    _isUrgent = value ?? false;
-                  });
+              // Urgency checkbox with ValueListenableBuilder
+              ValueListenableBuilder<bool>(
+                valueListenable: _isUrgent,
+                builder: (context, isUrgent, child) {
+                  return CheckboxListTile(
+                    title: const Text('Urgente (solicito servicio para hoy)'),
+                    value: isUrgent,
+                    onChanged: (value) {
+                      _isUrgent.value = value ?? false;
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  );
                 },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-                dense: true,
               ),
 
               const SizedBox(height: 16),
@@ -395,95 +400,115 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
               const SizedBox(height: 8),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<bool>(
-                      title: const Text('En tu ubicación'),
-                      value: true,
-                      groupValue: _inClientLocation,
-                      onChanged: (value) {
-                        setState(() {
-                          _inClientLocation = value!;
-                        });
-                      },
-                      dense: true,
-                    ),
-                  ),
-                  Expanded(
-                    child: RadioListTile<bool>(
-                      title: const Text('En local del técnico'),
-                      value: false,
-                      groupValue: _inClientLocation,
-                      onChanged: (value) {
-                        setState(() {
-                          _inClientLocation = value!;
-                          // Clear address if switched to technician location
-                          if (value == false) {
-                            _addressController.clear();
-                          }
-                        });
-                      },
-                      dense: true,
-                    ),
-                  ),
-                ],
+              // Location radio buttons with ValueListenableBuilder
+              ValueListenableBuilder<bool>(
+                valueListenable: _inClientLocation,
+                builder: (context, inClientLocation, child) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<bool>(
+                          title: const Text('En tu ubicación'),
+                          value: true,
+                          groupValue: inClientLocation,
+                          onChanged: (value) {
+                            _inClientLocation.value = value!;
+                          },
+                          dense: true,
+                        ),
+                      ),
+                      Expanded(
+                        child: RadioListTile<bool>(
+                          title: const Text('En local del técnico'),
+                          value: false,
+                          groupValue: inClientLocation,
+                          onChanged: (value) {
+                            _inClientLocation.value = value!;
+                            // Clear address if switched to technician location
+                            if (value == false) {
+                              _addressController.clear();
+                            }
+                          },
+                          dense: true,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
 
               // Show address field if service location is client location
-              if (_inClientLocation) ...[
-                const SizedBox(height: 16),
-                LocationInput(
-                  controller: _addressController,
-                  onGetLocation: _getCurrentLocation,
-                  onOpenMap: _openLocationPicker,
-                ),
-              ],
+              ValueListenableBuilder<bool>(
+                valueListenable: _inClientLocation,
+                builder: (context, inClientLocation, child) {
+                  if (inClientLocation) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: LocationInput(
+                        controller: _addressController,
+                        onGetLocation: _getCurrentLocation,
+                        onOpenMap: _openLocationPicker,
+                      ),
+                    );
+                  } else {
+                    return const SizedBox.shrink();
+                  }
+                },
+              ),
 
               const SizedBox(height: 16),
 
-              // Photos
-              PhotoPicker(
-                photoUrls: _photoUrls,
-                onPhotosChanged: (urls) {
-                  setState(() {
-                    _photoUrls = urls;
-                  });
+              // Photos with ValueListenableBuilder
+              ValueListenableBuilder<List<String>>(
+                valueListenable: _photoUrls,
+                builder: (context, photoUrls, child) {
+                  return PhotoPicker(
+                    photoUrls: photoUrls,
+                    onPhotosChanged: (urls) {
+                      _photoUrls.value = urls;
+                    },
+                    onFilesSelected: _handlePhotosSelected,
+                  );
                 },
               ),
 
               const SizedBox(height: 24),
 
-              // Submit button
+              // Submit button with ValueListenableBuilder for isSubmitting
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child:
-                      _isSubmitting
-                          ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _isSubmitting,
+                  builder: (context, isSubmitting, child) {
+                    return ElevatedButton(
+                      onPressed: isSubmitting ? null : _submitForm,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child:
+                          isSubmitting
+                              ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : const Text(
+                                'PUBLICAR SOLICITUD',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          )
-                          : const Text(
-                            'PUBLICAR SOLICITUD',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                    );
+                  },
                 ),
               ),
             ],

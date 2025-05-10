@@ -19,41 +19,85 @@ class RequestCard extends StatelessWidget {
     String requestId,
     ServiceRequestViewModel viewModel,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Cancelar solicitud'),
-            content: const Text(
-              '¿Estás seguro de que deseas cancelar esta solicitud?',
+    try {
+      print("Starting delete confirmation for request: $requestId");
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder:
+            (dialogContext) => AlertDialog(
+              title: const Text('Eliminar solicitud'),
+              content: const Text(
+                '¿Estás seguro de que deseas eliminar esta solicitud? Esta acción no se puede deshacer y eliminará todos los datos relacionados, incluyendo las fotos.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('NO'),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('SÍ, ELIMINAR'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('NO'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('SÍ, CANCELAR'),
-              ),
-            ],
-          ),
-    );
+      );
 
-    if (confirmed == true) {
-      try {
-        await viewModel.cancelServiceRequest(requestId);
+      print("Dialog result: $confirmed");
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Solicitud cancelada correctamente'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } catch (e) {
+      if (confirmed == true) {
+        // Show loading indicator
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (loadingContext) =>
+                    const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        print("Calling deleteServiceRequest");
+        final result = await viewModel.deleteServiceRequest(requestId);
+
+        // Close loading indicator
+        if (context.mounted) Navigator.pop(context);
+
+        if (context.mounted) {
+          if (result.isSuccess) {
+            print("Delete successful, showing success message");
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Solicitud eliminada correctamente'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+
+            // Explicitly reload requests after deletion
+            viewModel.reloadRequests();
+          } else {
+            print("Delete failed: ${result.error}");
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Error al eliminar la solicitud: ${result.error}',
+                ),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print("Exception in _confirmDelete: $e");
+      // Close loading indicator on error
+      if (context.mounted) {
+        Navigator.popUntil(context, (route) => route.isFirst);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al cancelar la solicitud: $e'),
+            content: Text('Error al eliminar la solicitud: $e'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -81,7 +125,10 @@ class RequestCard extends StatelessWidget {
                   (context) =>
                       ServiceRequestDetailScreen(requestId: request.id),
             ),
-          );
+          ).then((_) {
+            // Reload data when returning from detail screen
+            requestViewModel.reloadRequests();
+          });
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -120,7 +167,7 @@ class RequestCard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Title and urgency
+              // Title and category icon
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -129,23 +176,14 @@ class RequestCard extends StatelessWidget {
                     builder: (context, categoryViewModel, child) {
                       CategoryModel? category;
                       if (request.categoryIds.isNotEmpty) {
-                        category = categoryViewModel.categories.firstWhere(
-                          (c) => c.id == request.categoryIds.first,
-                          orElse:
-                              () =>
-                                  categoryViewModel.categories.isNotEmpty
-                                      ? categoryViewModel.categories.first
-                                      : CategoryModel(
-                                        id: '',
-                                        name: '',
-                                        iconName: 'build',
-                                        iconColor: Colors.grey,
-                                        tags: [],
-                                        isActive: true,
-                                        createdAt: DateTime.now(),
-                                        updatedAt: DateTime.now(),
-                                      ),
-                        );
+                        try {
+                          category = categoryViewModel.categories.firstWhere(
+                            (c) => c.id == request.categoryIds.first,
+                          );
+                        } catch (e) {
+                          // If category not found, use a default one
+                          category = null;
+                        }
                       }
 
                       return Container(
@@ -250,23 +288,27 @@ class RequestCard extends StatelessWidget {
 
                   const Spacer(),
 
-                  // Delete button
-                  if (request.status == 'pending')
-                    IconButton(
-                      icon: const Icon(
-                        Icons.delete,
+                  // Delete button - now showing for any status
+                  GestureDetector(
+                    onTap:
+                        () => _confirmDelete(
+                          context,
+                          request.id,
+                          requestViewModel,
+                        ),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.delete_forever,
                         color: Colors.red,
                         size: 20,
                       ),
-                      onPressed:
-                          () => _confirmDelete(
-                            context,
-                            request.id,
-                            requestViewModel,
-                          ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
                     ),
+                  ),
 
                   const SizedBox(width: 8),
 
