@@ -9,7 +9,7 @@ import '../../../view_models/category_view_model.dart';
 import '../../../view_models/service_request_view_model.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/services/maps_service.dart';
-import '../../../screens/technician/location_picker_screen.dart';
+import '../../technician/profile/location_picker_screen.dart';
 import 'category_selector.dart';
 import 'location_input.dart';
 import 'photo_picker.dart';

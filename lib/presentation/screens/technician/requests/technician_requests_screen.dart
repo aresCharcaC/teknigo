@@ -7,6 +7,7 @@ import 'components/request_card.dart';
 import 'components/request_filters.dart';
 import 'components/empty_requests_view.dart';
 import 'components/loading_requests_view.dart';
+import 'technician_request_detail_screen.dart';
 
 class TechnicianRequestsScreen extends StatefulWidget {
   const TechnicianRequestsScreen({Key? key}) : super(key: key);
@@ -33,121 +34,122 @@ class _TechnicianRequestsScreenState extends State<TechnicianRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => TechnicianRequestViewModel(),
-      child: Consumer<TechnicianRequestViewModel>(
-        builder: (context, viewModel, child) {
-          return Scaffold(
-            body: Column(
-              children: [
-                // Barra superior de filtros
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Solicitudes disponibles',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+    return Consumer<TechnicianRequestViewModel>(
+      builder: (context, viewModel, child) {
+        return Scaffold(
+          body: Column(
+            children: [
+              // Barra superior de filtros
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Solicitudes disponibles',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          _showFilters
-                              ? Icons.filter_list_off
-                              : Icons.filter_list,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _showFilters = !_showFilters;
-                          });
-                        },
-                        tooltip: 'Filtros',
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.refresh,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                        onPressed:
-                            viewModel.isLoading
-                                ? null
-                                : () => viewModel.refreshRequests(),
-                        tooltip: 'Actualizar',
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Panel de filtros
-                if (_showFilters)
-                  RequestFilters(
-                    onApplyFilters: (filters) {
-                      viewModel.applyFilters(filters);
-                    },
-                  ),
-
-                // Indicador de estado
-                if (viewModel.isLoading)
-                  LoadingRequestsView()
-                else if (viewModel.matchingRequests.isEmpty)
-                  EmptyRequestsView(
-                    message:
-                        viewModel.hasError
-                            ? viewModel.errorMessage
-                            : 'No hay solicitudes disponibles que coincidan con tu perfil',
-                  )
-                else
-                  Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: () => viewModel.refreshRequests(),
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: viewModel.matchingRequests.length,
-                        itemBuilder: (context, index) {
-                          final request = viewModel.matchingRequests[index];
-                          return RequestCard(
-                            request: request,
-                            onTap: () => _viewRequestDetails(request.id),
-                          );
-                        },
                       ),
                     ),
+                    // Botón para mostrar/ocultar solicitudes ignoradas
+                    IconButton(
+                      icon: Icon(
+                        viewModel.showIgnoredRequests
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color:
+                            viewModel.showIgnoredRequests
+                                ? Colors.blue
+                                : Theme.of(context).primaryColor,
+                      ),
+                      tooltip:
+                          viewModel.showIgnoredRequests
+                              ? 'Ocultar ignoradas'
+                              : 'Mostrar ignoradas',
+                      onPressed: () {
+                        viewModel.toggleShowIgnoredRequests();
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        _showFilters
+                            ? Icons.filter_list_off
+                            : Icons.filter_list,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showFilters = !_showFilters;
+                        });
+                      },
+                      tooltip: 'Filtros',
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.refresh,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                      onPressed:
+                          viewModel.isLoading
+                              ? null
+                              : () => viewModel.refreshRequests(),
+                      tooltip: 'Actualizar',
+                    ),
+                  ],
+                ),
+              ),
+
+              // Panel de filtros
+              if (_showFilters)
+                RequestFilters(
+                  onApplyFilters: (filters) {
+                    viewModel.applyFilters(filters);
+                  },
+                ),
+
+              // Indicador de estado
+              if (viewModel.isLoading)
+                LoadingRequestsView()
+              else if (viewModel.matchingRequests.isEmpty)
+                EmptyRequestsView(
+                  message:
+                      viewModel.hasError
+                          ? viewModel.errorMessage
+                          : 'No hay solicitudes disponibles que coincidan con tu perfil',
+                )
+              else
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => viewModel.refreshRequests(),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: viewModel.matchingRequests.length,
+                      itemBuilder: (context, index) {
+                        final request = viewModel.matchingRequests[index];
+                        return RequestCard(
+                          request: request,
+                          onTap: () => _viewRequestDetails(request.id),
+                          onIgnore: () => viewModel.ignoreRequest(request.id),
+                        );
+                      },
+                    ),
                   ),
-              ],
-            ),
-          );
-        },
-      ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   void _viewRequestDetails(String requestId) {
-    // Navegar a la pantalla de detalles de la solicitud
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => RequestDetailScreen(requestId: requestId),
+        builder:
+            (context) => TechnicianRequestDetailScreen(requestId: requestId),
       ),
-    );
-  }
-}
-
-// Pantalla ficticia para ver los detalles (implementar después)
-class RequestDetailScreen extends StatelessWidget {
-  final String requestId;
-
-  const RequestDetailScreen({Key? key, required this.requestId})
-    : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Detalles de la solicitud')),
-      body: Center(child: Text('Detalles de la solicitud $requestId')),
     );
   }
 }

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../view_models/search_view_model.dart';
 import '../../view_models/category_view_model.dart';
-import '../../widgets/technician_list_item.dart';
+import 'components/technician_list_item.dart';
 import 'package:teknigo/presentation/view_models/search_view_model.dart';
 
 class SearchScreen extends StatefulWidget {

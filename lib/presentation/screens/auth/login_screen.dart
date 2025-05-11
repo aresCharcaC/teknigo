@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/validators.dart';
 import '../../view_models/auth_view_model.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../widgets/social_login_button.dart';
+import 'components/custom_text_field.dart';
+import 'components/social_login_button.dart';
 import 'register_screen.dart';
 import 'reset_password_screen.dart';
 

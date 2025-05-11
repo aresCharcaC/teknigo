@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/technician_repository.dart';
-import '../../presentation/widgets/technician_card.dart';
+import '../screens/search/components/technician_card.dart';
 import '../common/base_view_model.dart';
 
 class HomeViewModel extends BaseViewModel {

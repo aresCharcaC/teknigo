@@ -6,9 +6,14 @@ import '../../../../../core/constants/app_colors.dart';
 class RequestCard extends StatelessWidget {
   final ServiceRequestModel request;
   final VoidCallback onTap;
+  final VoidCallback onIgnore;
 
-  const RequestCard({Key? key, required this.request, required this.onTap})
-    : super(key: key);
+  const RequestCard({
+    Key? key,
+    required this.request,
+    required this.onTap,
+    required this.onIgnore,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +76,41 @@ class RequestCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+
+                  // Botón de "No me interesa"
+                  IconButton(
+                    icon: Icon(Icons.close, size: 18, color: Colors.grey),
+                    tooltip: 'No me interesa',
+                    onPressed: () {
+                      // Mostrar diálogo de confirmación
+                      showDialog(
+                        context: context,
+                        builder:
+                            (context) => AlertDialog(
+                              title: Text('¿No te interesa esta solicitud?'),
+                              content: Text(
+                                'Esta solicitud no volverá a aparecer en tu lista.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: Text('CANCELAR'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    onIgnore();
+                                  },
+                                  child: Text(
+                                    'NO ME INTERESA',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                      );
+                    },
                   ),
                 ],
               ),

@@ -8,6 +8,22 @@ class TechnicianRequestRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  Future<ServiceRequestModel?> getRequestById(String requestId) async {
+    try {
+      final doc =
+          await _firestore.collection('service_requests').doc(requestId).get();
+
+      if (!doc.exists) {
+        return null;
+      }
+
+      return ServiceRequestModel.fromFirestore(doc);
+    } catch (e) {
+      print('Error al obtener solicitud por ID: $e');
+      return null;
+    }
+  }
+
   // Obtener solicitudes disponibles para el técnico actual
   Future<List<ServiceRequestModel>> getAvailableRequests() async {
     try {
