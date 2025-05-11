@@ -1,8 +1,10 @@
+// lib/presentation/screens/technician/technician_mode_screen.dart (actualizado)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../view_models/technician_view_model.dart';
+import '../../view_models/technician_request_view_model.dart';
 import '../../widgets/custom_drawer.dart';
 import 'profile/technician_profile_screen.dart';
 import 'chats/technician_chats_screen.dart';
@@ -49,24 +51,28 @@ class _TechnicianModeScreenState extends State<TechnicianModeScreen>
 
   @override
   Widget build(BuildContext context) {
-    // List of technician screens
+    // Lista de pantallas de técnico
     final List<Widget> _technicianScreens = [
       const TechnicianProfileScreen(),
       const TechnicianChatsScreen(),
-      //const TechnicianRequestsScreen(),
+      const TechnicianRequestsScreen(), // Ahora sí usamos esta pantalla
     ];
 
     return FadeTransition(
       opacity: _animation,
-      child: ChangeNotifierProvider(
-        create: (_) => TechnicianViewModel(),
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => TechnicianViewModel()),
+          // Añadimos el provider para la vista de solicitudes
+          ChangeNotifierProvider(create: (_) => TechnicianRequestViewModel()),
+        ],
         child: Consumer<TechnicianViewModel>(
           builder: (context, technicianViewModel, _) {
             return Scaffold(
               appBar: AppBar(
                 title: const Text('Modo Técnico'),
                 actions: [
-                  // Switch to return to client mode
+                  // Switch para volver al modo cliente
                   Switch(
                     value: true,
                     activeColor: Colors.white,
