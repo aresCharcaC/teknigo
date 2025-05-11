@@ -1,8 +1,8 @@
 // lib/presentation/screens/technician/components/availability_section.dart
 import 'package:flutter/material.dart';
-import '../../../../core/models/working_hours.dart';
-import '../components/profile_section.dart';
-import '../components/availability_card.dart';
+import '../../../../../core/models/working_hours.dart';
+import 'profile_section.dart';
+import 'availability_card.dart';
 
 class AvailabilitySection extends StatelessWidget {
   final bool isEditing;

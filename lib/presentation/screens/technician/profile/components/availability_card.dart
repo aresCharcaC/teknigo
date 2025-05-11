@@ -1,6 +1,6 @@
 // lib/presentation/screens/technician/components/availability_card.dart
 import 'package:flutter/material.dart';
-import '../../../../core/models/working_hours.dart';
+import '../../../../../core/models/working_hours.dart';
 
 class AvailabilityCard extends StatefulWidget {
   final bool isEditing;

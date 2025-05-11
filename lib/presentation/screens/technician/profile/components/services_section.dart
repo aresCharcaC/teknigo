@@ -1,9 +1,9 @@
 // lib/presentation/screens/technician/components/services_section.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../view_models/category_view_model.dart';
-import '../../../../core/models/category_model.dart';
-import '../components/profile_section.dart';
+import '../../../../view_models/category_view_model.dart';
+import '../../../../../core/models/category_model.dart';
+import 'profile_section.dart';
 
 class ServicesSection extends StatelessWidget {
   final bool isEditing;

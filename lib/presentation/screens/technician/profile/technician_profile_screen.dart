@@ -9,14 +9,14 @@ import '../../../../core/models/social_link.dart';
 import '../../../../core/models/working_hours.dart';
 import '../../../view_models/technician_view_model.dart';
 import '../../../view_models/category_view_model.dart';
-import '../components/profile_section.dart';
-import '../components/account_type_selector.dart';
-import '../components/personal_info_section.dart';
-import '../components/services_section.dart';
-import '../components/location_section.dart';
-import '../components/availability_section.dart';
-import '../components/social_links_section.dart';
-import '../location_picker_screen.dart';
+import 'components/profile_section.dart';
+import 'components/account_type_selector.dart';
+import 'components/personal_info_section.dart';
+import 'components/services_section.dart';
+import 'components/location_section.dart';
+import 'components/availability_section.dart';
+import 'components/social_links_section.dart';
+import 'location_picker_screen.dart';
 
 class TechnicianProfileScreen extends StatefulWidget {
   const TechnicianProfileScreen({Key? key}) : super(key: key);

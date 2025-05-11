@@ -2,8 +2,8 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../../widgets/custom_text_field.dart';
-import '../../technician/components/profile_section.dart';
+import '../../../auth/components/custom_text_field.dart';
+import 'profile_section.dart';
 
 class PersonalInfoSection extends StatelessWidget {
   final bool isIndividual;

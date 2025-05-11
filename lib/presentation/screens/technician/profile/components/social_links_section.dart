@@ -1,8 +1,8 @@
 // lib/presentation/screens/technician/components/social_links_section.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/models/social_link.dart';
-import '../components/profile_section.dart';
+import '../../../../../core/models/social_link.dart';
+import 'profile_section.dart';
 
 class SocialLinksSection extends StatelessWidget {
   final bool isEditing;

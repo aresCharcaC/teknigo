@@ -1,8 +1,8 @@
 // lib/presentation/screens/technician/components/categories_card.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../view_models/category_view_model.dart';
-import '../../../../core/models/category_model.dart';
+import '../../../../view_models/category_view_model.dart';
+import '../../../../../core/models/category_model.dart';
 
 /// Widget de tarjeta para mostrar y editar las categorías del técnico
 class CategoriesCard extends StatefulWidget {
