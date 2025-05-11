@@ -26,6 +26,7 @@ class TechnicianRequestDetailScreen extends StatefulWidget {
 class _TechnicianRequestDetailScreenState
     extends State<TechnicianRequestDetailScreen> {
   late Future<ServiceRequestModel?> _requestFuture;
+  int _currentIndex = 2; // Seleccionamos la pestaña de solicitudes por defecto
 
   @override
   void initState() {
@@ -115,6 +116,25 @@ class _TechnicianRequestDetailScreenState
           final request = snapshot.data!;
           return _buildRequestDetail(context, request);
         },
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        selectedItemColor: Theme.of(context).primaryColor,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          if (index != _currentIndex) {
+            // Si se presiona una pestaña diferente a la actual
+            Navigator.pop(context); // Primero cerramos esta pantalla
+
+            // Dependiendo de la pestaña, puedes añadir lógica adicional
+            // Por ejemplo, navegación a otra parte de la aplicación si es necesario
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
+          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Solicitudes'),
+        ],
       ),
     );
   }
