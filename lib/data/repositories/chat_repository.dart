@@ -1,258 +1,312 @@
+// lib/data/repositories/chat_repository.dart (ACTUALIZADO)
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/models/chat_model.dart';
+import '../../core/models/message_model.dart';
 import '../../core/constants/app_constants.dart';
-import '../../presentation/view_models/chat_view_model.dart';
 
-/// Repositorio para manejar las operaciones relacionadas con chats
 class ChatRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Obtener todos los chats del técnico actual
-  Future<List<Chat>> getChats() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return [];
-
-      // En una implementación real, obtendríamos los chats de Firestore
-      // Por ahora, devolvemos datos de muestra
-
-      return [
-        Chat(
-          id: '1',
-          userId: 'client1',
-          userName: 'María González',
-          lastMessage:
-              'Gracias por resolver el problema eléctrico. ¿Cuándo podrías venir a revisar los enchufes?',
-          lastMessageTime: DateTime.now().subtract(const Duration(minutes: 30)),
-          unreadCount: 2,
-        ),
-        Chat(
-          id: '2',
-          userId: 'client2',
-          userName: 'Pedro Ramírez',
-          lastMessage: 'Entendido, estaré esperando a esa hora.',
-          lastMessageTime: DateTime.now().subtract(const Duration(hours: 2)),
-        ),
-        Chat(
-          id: '3',
-          userId: 'client3',
-          userName: 'Ana Suárez',
-          lastMessage: 'El servicio fue excelente, muchas gracias.',
-          lastMessageTime: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      ];
-    } catch (e) {
-      print('Error al obtener chats: $e');
-      return [];
-    }
-  }
-
-  /// Obtener mensajes de un chat específico
-  Future<List<Message>> getMessages(String chatId) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return [];
-
-      // En una implementación real, obtendríamos los mensajes de Firestore
-      // Por ahora, devolvemos datos de muestra según el ID del chat
-
-      switch (chatId) {
-        case '1':
-          return [
-            Message(
-              id: '1.1',
-              senderId: 'client1',
-              text:
-                  'Hola, necesito ayuda con un problema eléctrico en mi casa.',
-              timestamp: DateTime.now().subtract(
-                const Duration(days: 1, hours: 2),
-              ),
-              isRead: true,
-            ),
-            Message(
-              id: '1.2',
-              senderId: user.uid,
-              text: 'Claro, cuéntame más detalles del problema.',
-              timestamp: DateTime.now().subtract(
-                const Duration(days: 1, hours: 1),
-              ),
-              isRead: true,
-            ),
-            Message(
-              id: '1.3',
-              senderId: 'client1',
-              text:
-                  'Se trata de un cortocircuito en el dormitorio principal. Cuando enciendo la luz, salta el disyuntor.',
-              timestamp: DateTime.now().subtract(const Duration(days: 1)),
-              isRead: true,
-            ),
-            Message(
-              id: '1.4',
-              senderId: user.uid,
-              text:
-                  'Entendido. Puedo visitarte mañana para revisar el problema. ¿Te parece bien a las 10am?',
-              timestamp: DateTime.now().subtract(const Duration(hours: 23)),
-              isRead: true,
-            ),
-            Message(
-              id: '1.5',
-              senderId: 'client1',
-              text: '¡Perfecto! Te espero mañana a las 10am.',
-              timestamp: DateTime.now().subtract(const Duration(hours: 22)),
-              isRead: true,
-            ),
-            Message(
-              id: '1.6',
-              senderId: user.uid,
-              text:
-                  'Ya resolví el problema del cortocircuito. Era un cable dañado en la instalación.',
-              timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-              isRead: true,
-            ),
-            Message(
-              id: '1.7',
-              senderId: 'client1',
-              text:
-                  'Gracias por resolver el problema eléctrico. ¿Cuándo podrías venir a revisar los enchufes?',
-              timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
-              isRead: false,
-            ),
-          ];
-        case '2':
-          return [
-            Message(
-              id: '2.1',
-              senderId: 'client2',
-              text: 'Hola, ¿puedes ayudarme con mi computadora? No enciende.',
-              timestamp: DateTime.now().subtract(const Duration(days: 2)),
-              isRead: true,
-            ),
-            Message(
-              id: '2.2',
-              senderId: user.uid,
-              text:
-                  'Hola Pedro. Claro que puedo ayudarte. ¿Has verificado que esté conectada correctamente?',
-              timestamp: DateTime.now().subtract(const Duration(days: 2)),
-              isRead: true,
-            ),
-            Message(
-              id: '2.3',
-              senderId: 'client2',
-              text: 'Sí, está bien conectada, pero sigue sin encender.',
-              timestamp: DateTime.now().subtract(const Duration(days: 1)),
-              isRead: true,
-            ),
-            Message(
-              id: '2.4',
-              senderId: user.uid,
-              text: 'Puedo ir a revisarla mañana a las 3pm. ¿Te parece bien?',
-              timestamp: DateTime.now().subtract(const Duration(hours: 4)),
-              isRead: true,
-            ),
-            Message(
-              id: '2.5',
-              senderId: 'client2',
-              text: 'Entendido, estaré esperando a esa hora.',
-              timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-              isRead: true,
-            ),
-          ];
-        case '3':
-          return [
-            Message(
-              id: '3.1',
-              senderId: 'client3',
-              text:
-                  'Necesito ayuda con mi aire acondicionado, no enfría correctamente.',
-              timestamp: DateTime.now().subtract(const Duration(days: 4)),
-              isRead: true,
-            ),
-            Message(
-              id: '3.2',
-              senderId: user.uid,
-              text:
-                  'Hola Ana. Puedo ir a revisarlo mañana por la tarde. ¿Te parece bien?',
-              timestamp: DateTime.now().subtract(const Duration(days: 4)),
-              isRead: true,
-            ),
-            Message(
-              id: '3.3',
-              senderId: 'client3',
-              text: 'Sí, perfecto. Te espero mañana.',
-              timestamp: DateTime.now().subtract(const Duration(days: 4)),
-              isRead: true,
-            ),
-            Message(
-              id: '3.4',
-              senderId: user.uid,
-              text:
-                  'Ya revisé el equipo. Necesitaba recarga de gas refrigerante. Ahora debería funcionar correctamente.',
-              timestamp: DateTime.now().subtract(const Duration(days: 3)),
-              isRead: true,
-            ),
-            Message(
-              id: '3.5',
-              senderId: 'client3',
-              text: 'El servicio fue excelente, muchas gracias.',
-              timestamp: DateTime.now().subtract(const Duration(days: 1)),
-              isRead: true,
-            ),
-          ];
-        default:
-          return [];
-      }
-    } catch (e) {
-      print('Error al obtener mensajes: $e');
-      return [];
-    }
-  }
-
-  /// Marcar un chat como leído
-  Future<bool> markChatAsRead(String chatId) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return false;
-
-      // En una implementación real, actualizaríamos el estado de los mensajes en Firestore
-      // Por ahora, simplemente devolvemos éxito
-
-      return true;
-    } catch (e) {
-      print('Error al marcar chat como leído: $e');
-      return false;
-    }
-  }
-
-  /// Enviar un mensaje en un chat
-  Future<bool> sendMessage(String chatId, String text) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return false;
-
-      // En una implementación real, guardaríamos el mensaje en Firestore
-      // Por ahora, simplemente devolvemos éxito
-
-      return true;
-    } catch (e) {
-      print('Error al enviar mensaje: $e');
-      return false;
-    }
-  }
-
-  /// Crear un nuevo chat con un cliente
-  Future<String?> createChat(String clientId, String initialMessage) async {
+  // Crear un nuevo chat a partir de una propuesta
+  Future<String?> createChatWithProposal({
+    required String requestId,
+    required String clientId,
+    required String message,
+    required double price,
+    required String availability,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) return null;
 
-      // En una implementación real, crearíamos un nuevo chat en Firestore
-      // Por ahora, devolvemos un ID simulado
+      // Crear el chat
+      final chatRef = _firestore.collection('chats').doc();
 
-      return 'new_chat_id';
+      final chat = ChatModel(
+        id: chatRef.id,
+        requestId: requestId,
+        clientId: clientId,
+        technicianId: user.uid,
+        createdAt: DateTime.now(),
+        lastMessage: 'Propuesta: S/ ${price.toStringAsFixed(2)}',
+        lastMessageTime: DateTime.now(),
+        isActive: true,
+      );
+
+      // Guardar el chat
+      await chatRef.set(chat.toFirestore());
+
+      // Crear el mensaje de propuesta
+      final messageRef = _firestore.collection('messages').doc();
+
+      final proposal = MessageModel(
+        id: messageRef.id,
+        chatId: chatRef.id,
+        senderId: user.uid,
+        type: MessageType.proposal,
+        content: message,
+        metadata: {'price': price, 'availability': availability},
+        timestamp: DateTime.now(),
+      );
+
+      // Guardar el mensaje
+      await messageRef.set(proposal.toFirestore());
+
+      return chatRef.id;
     } catch (e) {
-      print('Error al crear chat: $e');
+      print('Error creating chat with proposal: $e');
       return null;
+    }
+  }
+
+  // Obtener todos los chats del usuario - SIMPLIFICADO
+  Stream<List<ChatModel>> getUserChatsStream() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return Stream.value([]);
+    }
+
+    // Consulta simplificada: primero obtenemos los chats donde el usuario es cliente
+    return _firestore
+        .collection('chats')
+        .where('clientId', isEqualTo: user.uid)
+        .snapshots()
+        .map((snapshot) {
+          try {
+            final List<ChatModel> chats = [];
+            for (var doc in snapshot.docs) {
+              try {
+                final chat = ChatModel.fromFirestore(doc);
+                if (chat.isActive) {
+                  chats.add(chat);
+                }
+              } catch (e) {
+                print('Error converting chat document: $e');
+              }
+            }
+            return chats;
+          } catch (e) {
+            print('Error processing chats: $e');
+            return <ChatModel>[];
+          }
+        });
+  }
+
+  // También vamos a crear un método adicional para obtener chats donde el usuario es técnico
+  Stream<List<ChatModel>> getTechnicianChatsStream() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return Stream.value([]);
+    }
+
+    return _firestore
+        .collection('chats')
+        .where('technicianId', isEqualTo: user.uid)
+        .snapshots()
+        .map((snapshot) {
+          try {
+            final List<ChatModel> chats = [];
+            for (var doc in snapshot.docs) {
+              try {
+                final chat = ChatModel.fromFirestore(doc);
+                if (chat.isActive) {
+                  chats.add(chat);
+                }
+              } catch (e) {
+                print('Error converting chat document: $e');
+              }
+            }
+            return chats;
+          } catch (e) {
+            print('Error processing technician chats: $e');
+            return <ChatModel>[];
+          }
+        });
+  }
+
+  // Obtener mensajes de un chat
+  Stream<List<MessageModel>> getChatMessagesStream(String chatId) {
+    return _firestore
+        .collection('messages')
+        .where('chatId', isEqualTo: chatId)
+        .orderBy('timestamp')
+        .snapshots()
+        .map((snapshot) {
+          try {
+            return snapshot.docs
+                .map((doc) => MessageModel.fromFirestore(doc))
+                .toList();
+          } catch (e) {
+            print('Error processing messages: $e');
+            return <MessageModel>[];
+          }
+        });
+  }
+
+  // Enviar un mensaje de texto
+  Future<bool> sendTextMessage({
+    required String chatId,
+    required String content,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Crear referencia para el nuevo mensaje
+      final messageRef = _firestore.collection('messages').doc();
+
+      // Crear el mensaje
+      final message = MessageModel(
+        id: messageRef.id,
+        chatId: chatId,
+        senderId: user.uid,
+        type: MessageType.text,
+        content: content,
+        timestamp: DateTime.now(),
+      );
+
+      // Guardar el mensaje
+      await messageRef.set(message.toFirestore());
+
+      // Actualizar el último mensaje del chat
+      await _firestore.collection('chats').doc(chatId).update({
+        'lastMessage': content,
+        'lastMessageTime': Timestamp.fromDate(DateTime.now()),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error sending message: $e');
+      return false;
+    }
+  }
+
+  // Resto del código se mantiene igual...
+
+  // Enviar mensaje de imagen
+  Future<bool> sendImageMessage({
+    required String chatId,
+    required String imageUrl,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Crear referencia para el nuevo mensaje
+      final messageRef = _firestore.collection('messages').doc();
+
+      // Crear el mensaje
+      final message = MessageModel(
+        id: messageRef.id,
+        chatId: chatId,
+        senderId: user.uid,
+        type: MessageType.image,
+        content: imageUrl,
+        timestamp: DateTime.now(),
+      );
+
+      // Guardar el mensaje
+      await messageRef.set(message.toFirestore());
+
+      // Actualizar el último mensaje del chat
+      await _firestore.collection('chats').doc(chatId).update({
+        'lastMessage': 'Imagen',
+        'lastMessageTime': Timestamp.fromDate(DateTime.now()),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error sending image message: $e');
+      return false;
+    }
+  }
+
+  // Enviar mensaje de ubicación
+  Future<bool> sendLocationMessage({
+    required String chatId,
+    required double latitude,
+    required double longitude,
+    String address = '',
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Crear referencia para el nuevo mensaje
+      final messageRef = _firestore.collection('messages').doc();
+
+      // Crear el mensaje
+      final message = MessageModel(
+        id: messageRef.id,
+        chatId: chatId,
+        senderId: user.uid,
+        type: MessageType.location,
+        content: address,
+        metadata: {'latitude': latitude, 'longitude': longitude},
+        timestamp: DateTime.now(),
+      );
+
+      // Guardar el mensaje
+      await messageRef.set(message.toFirestore());
+
+      // Actualizar el último mensaje del chat
+      await _firestore.collection('chats').doc(chatId).update({
+        'lastMessage': 'Ubicación',
+        'lastMessageTime': Timestamp.fromDate(DateTime.now()),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error sending location message: $e');
+      return false;
+    }
+  }
+
+  // Marcar mensajes como leídos
+  Future<bool> markMessagesAsRead(String chatId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Obtener mensajes no leídos que no fueron enviados por el usuario actual
+      final snapshot =
+          await _firestore
+              .collection('messages')
+              .where('chatId', isEqualTo: chatId)
+              .where('senderId', isNotEqualTo: user.uid)
+              .where('isRead', isEqualTo: false)
+              .get();
+
+      // Si no hay mensajes no leídos
+      if (snapshot.docs.isEmpty) return true;
+
+      // Usar batch para eficiencia
+      final batch = _firestore.batch();
+
+      for (final doc in snapshot.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+
+      await batch.commit();
+      return true;
+    } catch (e) {
+      print('Error marking messages as read: $e');
+      return false;
+    }
+  }
+
+  // Eliminar un chat (marcar como inactivo)
+  Future<bool> deleteChat(String chatId) async {
+    try {
+      await _firestore.collection('chats').doc(chatId).update({
+        'isActive': false,
+      });
+      return true;
+    } catch (e) {
+      print('Error deleting chat: $e');
+      return false;
     }
   }
 }

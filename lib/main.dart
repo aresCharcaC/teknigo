@@ -3,6 +3,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:teknigo/presentation/view_models/chat_detail_view_model.dart';
+import 'package:teknigo/presentation/view_models/chat_list_view_model.dart';
+import 'package:teknigo/presentation/view_models/proposal_view_model.dart';
 import 'app.dart';
 import 'firebase_options.dart';
 import 'presentation/view_models/auth_view_model.dart';
@@ -41,10 +44,13 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ProfileViewModel()),
         ChangeNotifierProvider(create: (_) => TechnicianViewModel()),
         ChangeNotifierProvider(create: (_) => ServiceRequestViewModel()),
-        ChangeNotifierProvider(create: (_) => ChatViewModel()),
+        ChangeNotifierProvider(create: (_) => ChatDetailViewModel()),
         ChangeNotifierProvider(create: (_) => CategoryViewModel()),
         ChangeNotifierProvider(create: (_) => HomeViewModel()),
         ChangeNotifierProvider(create: (_) => SearchViewModel()),
+        ChangeNotifierProvider(create: (_) => ChatListViewModel()),
+        ChangeNotifierProvider(create: (_) => ProposalViewModel()),
+
         // Agregar más providers a medida que desarrolles nuevas funciones
       ],
       child: const MyApp(),

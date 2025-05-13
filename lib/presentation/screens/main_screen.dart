@@ -1,12 +1,15 @@
+// lib/presentation/screens/main_screen.dart (actualizado)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:teknigo/presentation/widgets/custom_drawer.dart';
 import 'package:teknigo/presentation/view_models/auth_view_model.dart';
 import 'package:teknigo/presentation/view_models/category_view_model.dart';
 import 'package:teknigo/presentation/view_models/technician_view_model.dart';
+import 'package:teknigo/presentation/view_models/chat_list_view_model.dart';
 import 'package:teknigo/core/constants/app_constants.dart';
 import 'home/home_screen.dart';
 import 'search/search_screen.dart';
+import 'chat/chat_list_screen.dart';
 import 'technician/technician_mode_screen.dart';
 import 'profile/profile_screen.dart';
 
@@ -26,6 +29,10 @@ class _MainScreenState extends State<MainScreen> {
   late final List<Widget> _clientScreens = [
     const HomeScreen(), // Pantalla de inicio con categorías
     const SearchScreen(), // Pantalla de búsqueda
+    ChangeNotifierProvider(
+      create: (_) => ChatListViewModel(),
+      child: const ChatListScreen(), // Pantalla de chats - NEW
+    ),
   ];
 
   @override
@@ -66,9 +73,9 @@ class _MainScreenState extends State<MainScreen> {
         ),
 
         // Contenido principal - cambia según la pestaña seleccionada
-        //body: _clientScreens[_currentIndex],
+        body: _clientScreens[_currentIndex],
 
-        // BottomNavigationBar simplificado con solo Home y Búsqueda
+        // BottomNavigationBar actualizado con Chats
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,
           selectedItemColor: Theme.of(context).primaryColor,
@@ -79,6 +86,7 @@ class _MainScreenState extends State<MainScreen> {
               icon: Icon(Icons.search),
               label: 'Búsqueda',
             ),
+            BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
           ],
           onTap: (index) {
             // Si ya estamos en esa pestaña, no hacemos nada
@@ -89,7 +97,6 @@ class _MainScreenState extends State<MainScreen> {
             });
           },
         ),
-        body: _currentIndex == 0 ? const HomeScreen() : const SearchScreen(),
       ),
     );
   }

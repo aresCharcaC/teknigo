@@ -1,14 +1,19 @@
-// lib/presentation/screens/technician/requests/components/action_buttons.dart
+// lib/presentation/screens/technician/requests/components/action_buttons.dart (actualizado)
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../view_models/proposal_view_model.dart';
+import 'proposal_form.dart';
 
 class ActionButtons extends StatelessWidget {
+  final String requestId;
+  final String clientId;
   final VoidCallback onNotInterested;
-  final VoidCallback onSendProposal;
 
   const ActionButtons({
     Key? key,
+    required this.requestId,
+    required this.clientId,
     required this.onNotInterested,
-    required this.onSendProposal,
   }) : super(key: key);
 
   @override
@@ -36,6 +41,7 @@ class ActionButtons extends StatelessWidget {
                     icon: const Icon(Icons.close),
                     label: const Text('No me interesa'),
                     style: OutlinedButton.styleFrom(
+                      // lib/presentation/screens/technician/requests/components/action_buttons.dart (actualizado - continuación)
                       foregroundColor: Colors.red,
                       side: BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -48,7 +54,7 @@ class ActionButtons extends StatelessWidget {
                 // Botón Enviar propuesta
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: onSendProposal,
+                    onPressed: () => _showProposalForm(context),
                     icon: const Icon(Icons.send),
                     label: const Text('Enviar propuesta'),
                     style: ElevatedButton.styleFrom(
@@ -63,6 +69,29 @@ class ActionButtons extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  // Mostrar el formulario de propuesta
+  void _showProposalForm(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => ChangeNotifierProvider(
+            create: (_) => ProposalViewModel(),
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: ProposalForm(
+                requestId: requestId,
+                clientId: clientId,
+                onClose: () => Navigator.pop(context),
+              ),
+            ),
+          ),
     );
   }
 }
