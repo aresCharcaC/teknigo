@@ -16,6 +16,13 @@ class ChatDetailViewModel extends BaseViewModel {
   List<MessageModel> _messages = [];
   List<MessageModel> get messages => _messages;
 
+  // Cancelar la suscripción cuando se destruye el objeto
+  @override
+  void dispose() {
+    // Añadir lógica para cancelar la suscripción si es necesario
+    super.dispose();
+  }
+
   // Iniciar escucha de mensajes de un chat
   void startListeningToMessages(String chatId) {
     try {
@@ -23,25 +30,38 @@ class ChatDetailViewModel extends BaseViewModel {
       _chatId = chatId;
       setLoading();
 
+      // Implementación alternativa para obtener mensajes si los índices no funcionan
       _repository
-          .getChatMessagesStream(chatId)
-          .listen(
-            (messagesList) {
-              print('ViewModel: Recibidos ${messagesList.length} mensajes');
-              _messages = messagesList;
-              setLoaded();
+          .getChatMessagesAlternative(chatId)
+          .then((messagesList) {
+            print('ViewModel: Recibidos ${messagesList.length} mensajes');
+            _messages = messagesList;
+            setLoaded();
 
-              // Marcar mensajes como leídos
-              _repository.markMessagesAsRead(chatId);
-            },
-            onError: (e) {
-              print('ViewModel: Error al cargar mensajes: $e');
-              setError('Error al cargar mensajes: $e');
-            },
-          );
+            // No intentar marcar como leídos si hay problemas con los índices
+            // _repository.markMessagesAsRead(chatId);
+          })
+          .catchError((e) {
+            print('ViewModel: Error al cargar mensajes: $e');
+            setError('Error al cargar mensajes: $e');
+          });
     } catch (e) {
       print('ViewModel: Error al iniciar escucha de mensajes: $e');
       setError('Error al iniciar escucha de mensajes: $e');
+    }
+  }
+
+  // Recargar mensajes manualmente
+  Future<bool> reloadMessages() async {
+    try {
+      setLoading();
+      final messagesList = await _repository.getChatMessagesAlternative(chatId);
+      _messages = messagesList;
+      setLoaded();
+      return true;
+    } catch (e) {
+      setError('Error al recargar mensajes: $e');
+      return false;
     }
   }
 
@@ -58,6 +78,11 @@ class ChatDetailViewModel extends BaseViewModel {
         chatId: _chatId,
         content: content,
       );
+
+      if (result) {
+        // Recargar mensajes después de enviar uno nuevo
+        reloadMessages();
+      }
 
       print('ViewModel: Resultado de envío: $result');
       return result;
@@ -80,12 +105,8 @@ class ChatDetailViewModel extends BaseViewModel {
       // Mostrar indicador de carga
       setLoading();
 
-      // Subir imagen
-      final imageUrl = await _storageService.uploadImage(
-        imageFile,
-        'chat_images',
-        _chatId,
-      );
+      // Subir imagen con manejo de errores mejorado
+      final imageUrl = await _uploadImageWithRetry(imageFile);
 
       if (imageUrl == null) {
         setError('Error al subir imagen');
@@ -98,12 +119,39 @@ class ChatDetailViewModel extends BaseViewModel {
         imageUrl: imageUrl,
       );
 
+      if (result) {
+        // Recargar mensajes después de enviar uno nuevo
+        reloadMessages();
+      }
+
       setLoaded();
       return result;
     } catch (e) {
       setError('Error al enviar imagen: $e');
       return false;
     }
+  }
+
+  // Método para subir imagen con reintentos
+  Future<String?> _uploadImageWithRetry(
+    File imageFile, {
+    int retries = 3,
+  }) async {
+    for (int i = 0; i < retries; i++) {
+      try {
+        return await _storageService.uploadImage(
+          imageFile,
+          'chat_images',
+          _chatId,
+        );
+      } catch (e) {
+        print('Error al subir imagen (intento ${i + 1}): $e');
+        if (i == retries - 1) return null;
+        // Esperar antes de reintentar
+        await Future.delayed(Duration(seconds: 1));
+      }
+    }
+    return null;
   }
 
   // Tomar y enviar foto desde la cámara
@@ -118,12 +166,8 @@ class ChatDetailViewModel extends BaseViewModel {
       // Mostrar indicador de carga
       setLoading();
 
-      // Subir imagen
-      final imageUrl = await _storageService.uploadImage(
-        imageFile,
-        'chat_images',
-        _chatId,
-      );
+      // Subir imagen con reintentos
+      final imageUrl = await _uploadImageWithRetry(imageFile);
 
       if (imageUrl == null) {
         setError('Error al subir imagen');
@@ -135,6 +179,11 @@ class ChatDetailViewModel extends BaseViewModel {
         chatId: _chatId,
         imageUrl: imageUrl,
       );
+
+      if (result) {
+        // Recargar mensajes después de enviar uno nuevo
+        reloadMessages();
+      }
 
       setLoaded();
       return result;
@@ -161,6 +210,11 @@ class ChatDetailViewModel extends BaseViewModel {
         longitude: longitude,
         address: 'Mi ubicación actual',
       );
+
+      if (result) {
+        // Recargar mensajes después de enviar uno nuevo
+        reloadMessages();
+      }
 
       return result;
     } catch (e) {

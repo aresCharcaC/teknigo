@@ -27,6 +27,7 @@ class ProposalMessage extends StatelessWidget {
         children: [
           // Título de la propuesta
           Row(
+            mainAxisSize: MainAxisSize.min, // Fix overflow
             children: [
               Icon(Icons.local_offer, size: 16, color: Colors.green),
               SizedBox(width: 4),
@@ -42,14 +43,13 @@ class ProposalMessage extends StatelessWidget {
 
           Divider(height: 16),
 
-          // Precio
-          Row(
+          // Precio - arreglado para evitar overflow
+          Wrap(
             children: [
               Text(
-                'Precio aproximado:',
+                'Precio aproximado: ',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              SizedBox(width: 4),
               Text(
                 'S/ ${price.toStringAsFixed(2)}',
                 style: TextStyle(
@@ -63,14 +63,13 @@ class ProposalMessage extends StatelessWidget {
 
           SizedBox(height: 4),
 
-          // Disponibilidad
-          Row(
+          // Disponibilidad - arreglado para evitar overflow
+          Wrap(
             children: [
               Text(
-                'Disponibilidad:',
+                'Disponibilidad: ',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              SizedBox(width: 4),
               Text(availability),
             ],
           ),

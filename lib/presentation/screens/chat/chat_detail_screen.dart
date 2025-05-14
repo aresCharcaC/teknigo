@@ -45,46 +45,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  Future<void> _testSendMessage() async {
-    try {
-      final firestore = FirebaseFirestore.instance;
-      final auth = FirebaseAuth.instance;
-
-      if (auth.currentUser == null) {
-        print('No hay usuario autenticado');
-        return;
-      }
-
-      print('Enviando mensaje de prueba a Firestore...');
-
-      // Crear documento de mensaje directamente
-      await firestore.collection('messages').add({
-        'chatId': widget.chatId,
-        'senderId': auth.currentUser!.uid,
-        'type': 'text',
-        'content': 'Mensaje de prueba directo ${DateTime.now().toString()}',
-        'timestamp': Timestamp.now(),
-        'isRead': false,
-      });
-
-      // Actualizar último mensaje
-      await firestore.collection('chats').doc(widget.chatId).update({
-        'lastMessage': 'Mensaje de prueba',
-        'lastMessageTime': Timestamp.now(),
-      });
-
-      print('Mensaje de prueba enviado correctamente');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Mensaje de prueba enviado')));
-    } catch (e) {
-      print('Error al enviar mensaje de prueba: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-  }
-
   @override
   void dispose() {
     _scrollController.dispose();
@@ -126,16 +86,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       body: Consumer<ChatDetailViewModel>(
         builder: (context, viewModel, child) {
+          // Imprimir estado para debug
           print(
             'Chat view state: ${viewModel.state}, messages: ${viewModel.messages.length}',
           );
 
           return Column(
             children: [
+              // Lista de mensajes
               Expanded(child: _buildMessagesList(viewModel)),
 
+              // Si hay una operación en curso (ej: enviando imagen)
               if (viewModel.isLoading) LinearProgressIndicator(),
 
+              // Área de entrada de mensajes
               ChatInput(
                 onSendMessage: (text) {
                   print('Enviando mensaje: $text');
@@ -165,12 +129,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           );
         },
       ),
-      // 👇 Aquí agregas correctamente tu botón flotante
-      floatingActionButton: FloatingActionButton(
-        onPressed: _testSendMessage,
-        child: const Icon(Icons.science),
-        tooltip: 'Prueba Firestore',
-      ),
     );
   }
 
@@ -185,18 +143,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
-            const SizedBox(height: 16),
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+            const SizedBox(height: 12),
             Text(
-              'Error: ${viewModel.errorMessage}',
-              style: TextStyle(color: Colors.red.shade700),
-              textAlign: TextAlign.center,
+              'Error al cargar mensajes',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Text(
+                viewModel.errorMessage,
+                style: TextStyle(color: Colors.red.shade700),
+                textAlign: TextAlign.center,
+              ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed:
-                  () => viewModel.startListeningToMessages(widget.chatId),
-              child: const Text('Reintentar'),
+            ElevatedButton.icon(
+              onPressed: () => viewModel.reloadMessages(),
+              icon: Icon(Icons.refresh),
+              label: Text('Reintentar'),
             ),
           ],
         ),
@@ -205,14 +171,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     if (viewModel.messages.isEmpty) {
       return Center(
-        child: Text(
-          'No hay mensajes aún',
-          style: TextStyle(color: Colors.grey.shade600),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No hay mensajes aún',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Envía el primer mensaje para iniciar la conversación',
+              style: TextStyle(color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       );
     }
 
-    // Importante: Desplazar al último mensaje cuando se carguen
+    // Desplazar al último mensaje cuando se carguen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });

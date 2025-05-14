@@ -297,6 +297,28 @@ class ChatRepository {
     }
   }
 
+  // Obtener mensajes sin depender del índice compuesto
+  Future<List<MessageModel>> getChatMessagesAlternative(String chatId) async {
+    try {
+      final snapshot =
+          await _firestore
+              .collection('messages')
+              .where('chatId', isEqualTo: chatId)
+              .get();
+
+      List<MessageModel> messages =
+          snapshot.docs.map((doc) => MessageModel.fromFirestore(doc)).toList();
+
+      // Ordenamos los mensajes por timestamp manualmente
+      messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      return messages;
+    } catch (e) {
+      print('Error obteniendo mensajes (alternativa): $e');
+      return [];
+    }
+  }
+
   // Eliminar un chat (marcar como inactivo)
   Future<bool> deleteChat(String chatId) async {
     try {

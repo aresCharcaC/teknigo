@@ -39,43 +39,46 @@ class _ChatInputState extends State<ChatInput> {
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             height: _showAttachOptions ? 70 : 0,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildAttachOption(
-                    icon: Icons.image,
-                    label: 'Galería',
-                    color: Colors.green,
-                    onTap: () {
-                      setState(() => _showAttachOptions = false);
-                      widget.onSendImage();
-                    },
-                  ),
-                  _buildAttachOption(
-                    icon: Icons.camera_alt,
-                    label: 'Cámara',
-                    color: Colors.blue,
-                    onTap: () {
-                      setState(() => _showAttachOptions = false);
-                      widget.onTakePhoto();
-                    },
-                  ),
-                  _buildAttachOption(
-                    icon: Icons.location_on,
-                    label: 'Ubicación',
-                    color: Colors.red,
-                    onTap: () {
-                      setState(() => _showAttachOptions = false);
-                      widget.onSendLocation();
-                    },
-                  ),
-                ],
-              ),
-            ),
+            child:
+                _showAttachOptions
+                    ? SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildAttachOption(
+                            icon: Icons.image,
+                            label: 'Galería',
+                            color: Colors.green,
+                            onTap: () {
+                              setState(() => _showAttachOptions = false);
+                              widget.onSendImage();
+                            },
+                          ),
+                          _buildAttachOption(
+                            icon: Icons.camera_alt,
+                            label: 'Cámara',
+                            color: Colors.blue,
+                            onTap: () {
+                              setState(() => _showAttachOptions = false);
+                              widget.onTakePhoto();
+                            },
+                          ),
+                          _buildAttachOption(
+                            icon: Icons.location_on,
+                            label: 'Ubicación',
+                            color: Colors.red,
+                            onTap: () {
+                              setState(() => _showAttachOptions = false);
+                              widget.onSendLocation();
+                            },
+                          ),
+                        ],
+                      ),
+                    )
+                    : SizedBox.shrink(),
           ),
 
-          // Barra de entrada de texto
+          // Barra de entrada de texto - corregida para evitar overflow
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -89,6 +92,7 @@ class _ChatInputState extends State<ChatInput> {
               ],
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end, // Alinear al final
               children: [
                 // Botón para mostrar/ocultar opciones de adjuntos
                 IconButton(
@@ -101,22 +105,27 @@ class _ChatInputState extends State<ChatInput> {
                       _showAttachOptions = !_showAttachOptions;
                     });
                   },
+                  constraints: BoxConstraints.tightFor(width: 40, height: 40),
+                  padding: EdgeInsets.zero,
                 ),
 
                 // Campo de texto
                 Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    decoration: const InputDecoration(
-                      hintText: 'Escribe un mensaje...',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: 120),
+                    child: TextField(
+                      controller: _textController,
+                      decoration: const InputDecoration(
+                        hintText: 'Escribe un mensaje...',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                       ),
+                      maxLines: null,
+                      textCapitalization: TextCapitalization.sentences,
                     ),
-                    maxLines: null,
-                    textCapitalization: TextCapitalization.sentences,
                   ),
                 ),
 
@@ -127,6 +136,8 @@ class _ChatInputState extends State<ChatInput> {
                   onPressed: () {
                     _sendMessage(_textController.text);
                   },
+                  constraints: BoxConstraints.tightFor(width: 40, height: 40),
+                  padding: EdgeInsets.zero,
                 ),
               ],
             ),
