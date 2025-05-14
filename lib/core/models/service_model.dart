@@ -1,4 +1,5 @@
 // lib/core/models/service_model.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../enums/service_enums.dart';
 
@@ -26,6 +27,12 @@ class ServiceModel {
   final DateTime? completedAt;
   final String? cancellationReason;
 
+  // Nuevos campos
+  final DateTime? acceptedAt;
+  final DateTime? inProgressAt;
+  final DateTime? finishedAt;
+  final double? agreedPrice;
+
   ServiceModel({
     required this.id,
     required this.clientId,
@@ -49,6 +56,11 @@ class ServiceModel {
     this.technicianReview,
     this.completedAt,
     this.cancellationReason,
+    // Nuevos campos
+    this.acceptedAt,
+    this.inProgressAt,
+    this.finishedAt,
+    this.agreedPrice,
   });
 
   // Constructor desde un mapa (para convertir desde Firestore)
@@ -76,6 +88,11 @@ class ServiceModel {
       technicianReview: map['technicianReview'],
       completedAt: _parseTimestamp(map['completedAt']),
       cancellationReason: map['cancellationReason'],
+      // Nuevos campos
+      acceptedAt: _parseTimestamp(map['acceptedAt']),
+      inProgressAt: _parseTimestamp(map['inProgressAt']),
+      finishedAt: _parseTimestamp(map['finishedAt']),
+      agreedPrice: (map['agreedPrice'] as num?)?.toDouble(),
     );
   }
 
@@ -114,6 +131,12 @@ class ServiceModel {
       'completedAt':
           completedAt != null ? Timestamp.fromDate(completedAt!) : null,
       'cancellationReason': cancellationReason,
+      // Nuevos campos
+      'acceptedAt': acceptedAt != null ? Timestamp.fromDate(acceptedAt!) : null,
+      'inProgressAt':
+          inProgressAt != null ? Timestamp.fromDate(inProgressAt!) : null,
+      'finishedAt': finishedAt != null ? Timestamp.fromDate(finishedAt!) : null,
+      'agreedPrice': agreedPrice,
     };
   }
 
@@ -130,6 +153,11 @@ class ServiceModel {
     String? technicianReview,
     DateTime? completedAt,
     String? cancellationReason,
+    // Nuevos campos
+    DateTime? acceptedAt,
+    DateTime? inProgressAt,
+    DateTime? finishedAt,
+    double? agreedPrice,
   }) {
     return ServiceModel(
       id: this.id,
@@ -154,6 +182,11 @@ class ServiceModel {
       technicianReview: technicianReview ?? this.technicianReview,
       completedAt: completedAt ?? this.completedAt,
       cancellationReason: cancellationReason ?? this.cancellationReason,
+      // Nuevos campos
+      acceptedAt: acceptedAt ?? this.acceptedAt,
+      inProgressAt: inProgressAt ?? this.inProgressAt,
+      finishedAt: finishedAt ?? this.finishedAt,
+      agreedPrice: agreedPrice ?? this.agreedPrice,
     );
   }
 

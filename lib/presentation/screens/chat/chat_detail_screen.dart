@@ -1,4 +1,4 @@
-// lib/presentation/screens/chat/chat_detail_screen.dart (CORREGIDO)
+// lib/presentation/screens/chat/chat_detail_screen.dart (modificado)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,9 +6,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/message_model.dart';
 import '../../view_models/chat_detail_view_model.dart';
+import '../../view_models/service_status_view_model.dart'; // NUEVO
 import 'components/chat_app_bar.dart';
 import 'components/chat_input.dart';
 import 'components/message_bubble.dart';
+import 'components/service_status_card.dart'; // NUEVO
 
 class ChatDetailScreen extends StatefulWidget {
   final String chatId;
@@ -31,14 +33,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     // Iniciar la escucha de mensajes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Importante: Obtener el ViewModel después de que se construye el árbol de widgets
-      final viewModel = Provider.of<ChatDetailViewModel>(
+      final chatViewModel = Provider.of<ChatDetailViewModel>(
         context,
         listen: false,
       );
 
-      // Iniciar escucha - importante: verificar que este método se ejecuta
-      viewModel.startListeningToMessages(widget.chatId);
+      // NUEVO: Obtener el ServiceStatusViewModel
+      final serviceViewModel = Provider.of<ServiceStatusViewModel>(
+        context,
+        listen: false,
+      );
+
+      // Iniciar escucha de mensajes
+      chatViewModel.startListeningToMessages(widget.chatId);
       print('Escuchando mensajes para chat: ${widget.chatId}');
+
+      // NUEVO: Cargar información del servicio para este chat
+      serviceViewModel.loadServiceByChatId(widget.chatId);
 
       // Obtener el ID del otro usuario
       _getOtherUserId();
@@ -84,23 +95,143 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: ChatAppBar(userId: _otherUserId),
       ),
-      body: Consumer<ChatDetailViewModel>(
-        builder: (context, viewModel, child) {
-          // Imprimir estado para debug
-          print(
-            'Chat view state: ${viewModel.state}, messages: ${viewModel.messages.length}',
-          );
+      body: Column(
+        children: [
+          // NUEVO: Tarjeta de estado del servicio
+          ServiceStatusCard(chatId: widget.chatId),
 
-          return Column(
-            children: [
-              // Lista de mensajes
-              Expanded(child: _buildMessagesList(viewModel)),
+          // Lista de mensajes
+          Expanded(
+            child: Consumer<ChatDetailViewModel>(
+              builder: (context, viewModel, child) {
+                // Imprimir estado para debug
+                print(
+                  'Chat view state: ${viewModel.state}, messages: ${viewModel.messages.length}',
+                );
 
-              // Si hay una operación en curso (ej: enviando imagen)
-              if (viewModel.isLoading) LinearProgressIndicator(),
+                // Resto del código igual...
+                if (viewModel.isLoading && viewModel.messages.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              // Área de entrada de mensajes
-              ChatInput(
+                if (viewModel.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.red.shade300,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Error al cargar mensajes',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          child: Text(
+                            viewModel.errorMessage,
+                            style: TextStyle(color: Colors.red.shade700),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => viewModel.reloadMessages(),
+                          icon: Icon(Icons.refresh),
+                          label: Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (viewModel.messages.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No hay mensajes aún',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Envía el primer mensaje para iniciar la conversación',
+                          style: TextStyle(color: Colors.grey.shade600),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Desplazar al último mensaje cuando se carguen
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _scrollToBottom();
+                });
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  itemCount: viewModel.messages.length,
+                  itemBuilder: (context, index) {
+                    final message = viewModel.messages[index];
+                    final isMe = message.senderId == currentUserId;
+
+                    // Si es un mensaje consecutivo del mismo usuario, no mostrar avatar
+                    bool showAvatar = true;
+                    if (index > 0) {
+                      final prevMessage = viewModel.messages[index - 1];
+                      if (prevMessage.senderId == message.senderId) {
+                        showAvatar = false;
+                      }
+                    }
+
+                    return MessageBubble(
+                      message: message,
+                      isMe: isMe,
+                      showAvatar: showAvatar,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          // Si hay una operación en curso (ej: enviando imagen)
+          Consumer<ChatDetailViewModel>(
+            builder: (context, viewModel, _) {
+              if (viewModel.isLoading) {
+                return LinearProgressIndicator();
+              }
+              return SizedBox.shrink();
+            },
+          ),
+
+          // Área de entrada de mensajes
+          Consumer<ChatDetailViewModel>(
+            builder: (context, viewModel, _) {
+              return ChatInput(
                 onSendMessage: (text) {
                   print('Enviando mensaje: $text');
                   viewModel.sendTextMessage(text);
@@ -124,109 +255,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   print('Resultado envío ubicación: $success');
                   if (success) _scrollToBottom();
                 },
-              ),
-            ],
-          );
-        },
+              );
+            },
+          ),
+        ],
       ),
-    );
-  }
-
-  // Construir la lista de mensajes
-  Widget _buildMessagesList(ChatDetailViewModel viewModel) {
-    if (viewModel.isLoading && viewModel.messages.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (viewModel.hasError) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-            const SizedBox(height: 12),
-            Text(
-              'Error al cargar mensajes',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Text(
-                viewModel.errorMessage,
-                style: TextStyle(color: Colors.red.shade700),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => viewModel.reloadMessages(),
-              icon: Icon(Icons.refresh),
-              label: Text('Reintentar'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (viewModel.messages.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'No hay mensajes aún',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Envía el primer mensaje para iniciar la conversación',
-              style: TextStyle(color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Desplazar al último mensaje cuando se carguen
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom();
-    });
-
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: viewModel.messages.length,
-      itemBuilder: (context, index) {
-        final message = viewModel.messages[index];
-        final isMe = message.senderId == currentUserId;
-
-        // Si es un mensaje consecutivo del mismo usuario, no mostrar avatar
-        bool showAvatar = true;
-        if (index > 0) {
-          final prevMessage = viewModel.messages[index - 1];
-          if (prevMessage.senderId == message.senderId) {
-            showAvatar = false;
-          }
-        }
-
-        return MessageBubble(
-          message: message,
-          isMe: isMe,
-          showAvatar: showAvatar,
-        );
-      },
     );
   }
 

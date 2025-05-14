@@ -1,10 +1,11 @@
 // lib/core/enums/service_enums.dart
+
 enum ServiceStatus {
   pending, // Solicitud pendiente
   offered, // Oferta enviada al cliente
-  accepted, // Oferta aceptada, servicio en curso
-  inProgress, // Técnico trabajando
-  completed, // Servicio completado
+  accepted, // Oferta aceptada, servicio a punto de iniciarse
+  inProgress, // Técnico realizando el trabajo
+  completed, // Técnico marcó como completado (esperando confirmación)
   rated, // Servicio completado y calificado
   cancelled, // Servicio cancelado
   rejected, // Oferta rechazada

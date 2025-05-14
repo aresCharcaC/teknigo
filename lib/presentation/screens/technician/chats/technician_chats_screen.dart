@@ -1,9 +1,11 @@
+// lib/presentation/screens/technician/chats/technician_chats_screen.dart (corregido)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../view_models/chat_view_model.dart';
+import '../../../../core/models/chat_model.dart'; // Importar el modelo de chat
+import '../../../view_models/chat_list_view_model.dart';
+import '../../chat/chat_detail_screen.dart';
 
-/// Pantalla que muestra los chats activos del técnico con clientes
 class TechnicianChatsScreen extends StatefulWidget {
   const TechnicianChatsScreen({Key? key}) : super(key: key);
 
@@ -15,259 +17,171 @@ class _TechnicianChatsScreenState extends State<TechnicianChatsScreen> {
   @override
   void initState() {
     super.initState();
-    // En una implementación real, cargaríamos los chats del técnico aquí
+
+    // Cargar los chats al iniciar la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ChatListViewModel>(
+        context,
+        listen: false,
+      ).startListeningToChats();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Buscador de chats
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey.shade200,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+    return Consumer<ChatListViewModel>(
+      builder: (context, viewModel, child) {
+        // Mostrar indicador de carga
+        if (viewModel.isLoading) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        // Si hay error al cargar chats
+        if (viewModel.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                SizedBox(height: 16),
+                Text(
+                  'Error al cargar chats',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  viewModel.errorMessage,
+                  style: TextStyle(color: Colors.red.shade700),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => viewModel.startListeningToChats(),
+                  icon: Icon(Icons.refresh),
+                  label: Text('Reintentar'),
                 ),
               ],
             ),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Buscar chats...',
-                prefixIcon: Icon(Icons.search),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+          );
+        }
+
+        // Si no hay chats
+        if (viewModel.chats.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 64,
+                  color: Colors.grey.shade400,
                 ),
-              ),
-              onChanged: (value) {
-                // Implementar búsqueda de chats
-              },
+                SizedBox(height: 16),
+                Text(
+                  'No tienes chats activos',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Envía propuestas a clientes para iniciar conversaciones',
+                  style: TextStyle(color: Colors.grey.shade600),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => viewModel.startListeningToChats(),
+                  icon: Icon(Icons.refresh),
+                  label: Text('Actualizar'),
+                ),
+              ],
             ),
-          ),
-        ),
+          );
+        }
 
-        // Contenido principal
-        Expanded(child: _buildChatsList()),
-      ],
-    );
-  }
-
-  Widget _buildChatsList() {
-    // Lista simulada de chats para fines de demostración
-    final List<ChatItem> chats = [
-      ChatItem(
-        id: '1',
-        userName: 'María González',
-        lastMessage:
-            'Gracias por resolver el problema eléctrico. ¿Cuándo podrías venir a revisar los enchufes?',
-        timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
-        unreadCount: 2,
-        userImage: null,
-      ),
-      ChatItem(
-        id: '2',
-        userName: 'Pedro Ramírez',
-        lastMessage: 'Entendido, estaré esperando a esa hora.',
-        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-        unreadCount: 0,
-        userImage: null,
-      ),
-      ChatItem(
-        id: '3',
-        userName: 'Ana Suárez',
-        lastMessage: 'El servicio fue excelente, muchas gracias.',
-        timestamp: DateTime.now().subtract(const Duration(days: 1)),
-        unreadCount: 0,
-        userImage: null,
-      ),
-    ];
-
-    if (chats.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No tienes chats activos',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Los chats con clientes aparecerán aquí',
-              style: TextStyle(color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: chats.length,
-      itemBuilder: (context, index) {
-        final chat = chats[index];
-        return _buildChatItem(chat);
-      },
-    );
-  }
-
-  Widget _buildChatItem(ChatItem chat) {
-    return InkWell(
-      onTap: () {
-        // Navegar a la pantalla de detalle del chat
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Abrir chat con ${chat.userName}'),
-            behavior: SnackBarBehavior.floating,
+        // Mostrar lista de chats
+        return RefreshIndicator(
+          onRefresh: () async {
+            viewModel.startListeningToChats();
+          },
+          child: ListView.builder(
+            itemCount: viewModel.chats.length,
+            itemBuilder: (context, index) {
+              final chat = viewModel.chats[index];
+              return _buildChatItem(context, chat, index, viewModel);
+            },
           ),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-          ),
-          color: chat.unreadCount > 0 ? Colors.blue.shade50 : null,
-        ),
-        child: Row(
-          children: [
-            // Avatar del usuario
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: Colors.blue.shade100,
-              child: Text(
-                chat.userName.isNotEmpty ? chat.userName[0].toUpperCase() : '?',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Información del chat
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Nombre y hora
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat.userName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        _formatChatTime(chat.timestamp),
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  // Último mensaje
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat.lastMessage,
-                          style: TextStyle(
-                            color:
-                                chat.unreadCount > 0
-                                    ? Colors.black87
-                                    : Colors.grey.shade600,
-                            fontWeight:
-                                chat.unreadCount > 0
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (chat.unreadCount > 0)
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            chat.unreadCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  String _formatChatTime(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
+  // Corregido: agregamos el parámetro del chat y el índice
+  Widget _buildChatItem(
+    BuildContext context,
+    ChatModel chat,
+    int index,
+    ChatListViewModel viewModel,
+  ) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Colors.blue.shade100,
+        child: Icon(Icons.person, color: Theme.of(context).primaryColor),
+      ),
+      title: Text(
+        'Cliente #${index + 1}', // Reemplazar con nombre real cuando esté disponible
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text(
+        chat.lastMessage ?? 'No hay mensajes aún',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            _formatDateTime(chat.lastMessageTime ?? chat.createdAt),
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          SizedBox(height: 4),
+          if (chat.requestId != null && chat.requestId!.isNotEmpty)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.green.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Servicio',
+                style: TextStyle(color: Colors.green.shade700, fontSize: 12),
+              ),
+            ),
+        ],
+      ),
+      onTap: () {
+        // Navegar al detalle del chat
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatDetailScreen(chatId: chat.id),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final difference = DateTime.now().difference(dateTime);
 
     if (difference.inDays > 0) {
       return '${difference.inDays}d';
     } else if (difference.inHours > 0) {
       return '${difference.inHours}h';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}min';
+      return '${difference.inMinutes}m';
     } else {
       return 'ahora';
     }
   }
-}
-
-/// Modelo para un elemento de chat
-class ChatItem {
-  final String id;
-  final String userName;
-  final String lastMessage;
-  final DateTime timestamp;
-  final int unreadCount;
-  final String? userImage;
-
-  ChatItem({
-    required this.id,
-    required this.userName,
-    required this.lastMessage,
-    required this.timestamp,
-    required this.unreadCount,
-    this.userImage,
-  });
 }

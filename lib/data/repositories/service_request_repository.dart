@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../../core/constants/app_constants.dart';
 import '../../core/models/service_request_model.dart';
+import '../../core/enums/service_enums.dart';
 
 class ServiceRequestRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -181,6 +182,129 @@ class ServiceRequestRepository {
 
           return requests;
         });
+  }
+
+  // Método para aceptar una propuesta
+  Future<bool> acceptService(String serviceId, double price) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      await _firestore.collection('service_requests').doc(serviceId).update({
+        'status': ServiceStatus.accepted.value,
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'price': price,
+      });
+
+      return true;
+    } catch (e) {
+      print('Error al aceptar el servicio: $e');
+      return false;
+    }
+  }
+
+  // Método para que el técnico marque como "en progreso"
+  Future<bool> startService(String serviceId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Verificar que el usuario actual es el técnico
+      final doc =
+          await _firestore.collection('service_requests').doc(serviceId).get();
+      if (!doc.exists) return false;
+
+      final data = doc.data()!;
+      if (data['technicianId'] != user.uid) {
+        return false; // No es el técnico asignado
+      }
+
+      await _firestore.collection('service_requests').doc(serviceId).update({
+        'status': ServiceStatus.inProgress.value,
+        'startedAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error al iniciar el servicio: $e');
+      return false;
+    }
+  }
+
+  // Método para que el técnico marque como completado
+  Future<bool> completeService(String serviceId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Verificar que el usuario actual es el técnico
+      final doc =
+          await _firestore.collection('service_requests').doc(serviceId).get();
+      if (!doc.exists) return false;
+
+      final data = doc.data()!;
+      if (data['technicianId'] != user.uid) {
+        return false; // No es el técnico asignado
+      }
+
+      await _firestore.collection('service_requests').doc(serviceId).update({
+        'status': ServiceStatus.completed.value,
+        'techCompletedAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error al completar el servicio: $e');
+      return false;
+    }
+  }
+
+  // Método para que el cliente califique y finalice el servicio
+  Future<bool> rateAndFinishService(
+    String serviceId,
+    double rating,
+    String? comment,
+  ) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Verificar que el usuario actual es el cliente
+      final doc =
+          await _firestore.collection('service_requests').doc(serviceId).get();
+      if (!doc.exists) return false;
+
+      final data = doc.data()!;
+      if (data['clientId'] != user.uid) {
+        return false; // No es el cliente del servicio
+      }
+
+      final technicianId = data['technicianId'];
+      if (technicianId == null) return false;
+
+      // Actualizar el servicio
+      await _firestore.collection('service_requests').doc(serviceId).update({
+        'status': ServiceStatus.rated.value,
+        'completedAt': FieldValue.serverTimestamp(),
+        'technicianRating': rating,
+        'technicianReview': comment,
+      });
+
+      // Crear la reseña
+      await _firestore.collection('reviews').add({
+        'serviceId': serviceId,
+        'reviewerId': user.uid,
+        'reviewedId': technicianId,
+        'rating': rating,
+        'comment': comment,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error al calificar el servicio: $e');
+      return false;
+    }
   }
 
   // Delete a request completely - including all photos

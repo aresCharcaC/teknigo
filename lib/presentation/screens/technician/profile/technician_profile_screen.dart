@@ -17,6 +17,7 @@ import 'components/location_section.dart';
 import 'components/availability_section.dart';
 import 'components/social_links_section.dart';
 import 'location_picker_screen.dart';
+import 'components/rating_section.dart';
 
 class TechnicianProfileScreen extends StatefulWidget {
   const TechnicianProfileScreen({Key? key}) : super(key: key);

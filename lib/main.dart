@@ -15,6 +15,7 @@ import 'presentation/view_models/category_view_model.dart';
 import 'presentation/view_models/technician_view_model.dart';
 import 'presentation/view_models/home_view_model.dart';
 import 'presentation/view_models/service_request_view_model.dart';
+import 'presentation/view_models/service_status_view_model.dart';
 import 'presentation/view_models/chat_view_model.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
@@ -50,6 +51,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SearchViewModel()),
         ChangeNotifierProvider(create: (_) => ChatListViewModel()),
         ChangeNotifierProvider(create: (_) => ProposalViewModel()),
+        ChangeNotifierProvider(create: (_) => ServiceStatusViewModel()),
 
         // Agregar más providers a medida que desarrolles nuevas funciones
       ],

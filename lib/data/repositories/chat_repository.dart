@@ -21,6 +21,25 @@ class ChatRepository {
       final user = _auth.currentUser;
       if (user == null) return null;
 
+      // Obtener el documento del servicio
+      final serviceDoc =
+          await _firestore.collection('service_requests').doc(requestId).get();
+
+      if (!serviceDoc.exists) {
+        print('Servicio no encontrado: $requestId');
+        return null;
+      }
+
+      // Obtener datos del servicio
+      final serviceData = serviceDoc.data() as Map<String, dynamic>;
+
+      // Actualizar el servicio con el técnico asignado y nuevo estado
+      await _firestore.collection('service_requests').doc(requestId).update({
+        'technicianId': user.uid,
+        'status': 'offered',
+        'price': price,
+      });
+
       // Crear el chat
       final chatRef = _firestore.collection('chats').doc();
 

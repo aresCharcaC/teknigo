@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
+import 'rating_section.dart';
 
 class ProfileHeader extends StatelessWidget {
   final Map<String, dynamic> userData;
