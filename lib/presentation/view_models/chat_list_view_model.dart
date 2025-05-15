@@ -1,5 +1,4 @@
 // lib/presentation/view_models/chat_list_view_model.dart
-
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../core/models/chat_model.dart';
@@ -12,7 +11,7 @@ class ChatListViewModel extends BaseViewModel {
   List<ChatModel> _chats = [];
   List<ChatModel> get chats => _chats;
 
-  bool _isTechnicianMode = false; // Track if we're in technician mode
+  bool _isTechnicianMode = false;
   bool get isTechnicianMode => _isTechnicianMode;
 
   StreamSubscription? _chatsSubscription;
@@ -21,18 +20,26 @@ class ChatListViewModel extends BaseViewModel {
   void setTechnicianMode(bool isTechnician) {
     if (_isTechnicianMode != isTechnician) {
       _isTechnicianMode = isTechnician;
+      print('ChatListViewModel: Setting technician mode to $isTechnician');
       // Reload chats when mode changes
       startListeningToChats();
     }
   }
 
   // Start listening to chats based on current mode
-  Future<void> startListeningToChats() async {
+  void startListeningToChats() {
     try {
+      print(
+        'ChatListViewModel: Starting to listen for chats in ${_isTechnicianMode ? "technician" : "client"} mode',
+      );
       setLoading();
 
       // Cancel existing subscription if any
-      _chatsSubscription?.cancel();
+      if (_chatsSubscription != null) {
+        print('ChatListViewModel: Cancelling existing subscription');
+        _chatsSubscription!.cancel();
+        _chatsSubscription = null;
+      }
 
       // Choose the appropriate stream based on mode
       final Stream<List<ChatModel>> stream =
@@ -43,16 +50,17 @@ class ChatListViewModel extends BaseViewModel {
       // Subscribe to the stream
       _chatsSubscription = stream.listen(
         (chats) {
+          print('ChatListViewModel: Received ${chats.length} chats');
           _chats = chats;
           setLoaded();
         },
         onError: (e) {
-          print('Error in chat stream: $e');
+          print('ChatListViewModel: Error in chat stream: $e');
           setError('Error loading chats: $e');
         },
       );
     } catch (e) {
-      print('Error starting chat listener: $e');
+      print('ChatListViewModel: Error starting chat listener: $e');
       setError('Error starting chat listener: $e');
     }
   }
@@ -60,9 +68,11 @@ class ChatListViewModel extends BaseViewModel {
   // Delete a chat
   Future<bool> deleteChat(String chatId) async {
     try {
+      print('ChatListViewModel: Deleting chat: $chatId');
       final result = await _repository.deleteChat(chatId);
       return result;
     } catch (e) {
+      print('ChatListViewModel: Error deleting chat: $e');
       setError('Error deleting chat: $e');
       return false;
     }
@@ -70,7 +80,11 @@ class ChatListViewModel extends BaseViewModel {
 
   @override
   void dispose() {
-    _chatsSubscription?.cancel();
+    print('ChatListViewModel: Disposing');
+    if (_chatsSubscription != null) {
+      _chatsSubscription!.cancel();
+      _chatsSubscription = null;
+    }
     super.dispose();
   }
 }

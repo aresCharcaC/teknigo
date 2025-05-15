@@ -1,15 +1,15 @@
 // lib/presentation/screens/technician/chats/technician_chat_detail_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/models/chat_model.dart';
+import '../../../../core/enums/service_enums.dart';
 import '../../../view_models/chat_detail_view_model.dart';
 import '../../../view_models/service_status_view_model.dart';
 import '../../../screens/chat/components/chat_app_bar.dart';
 import '../../../screens/chat/components/chat_input.dart';
 import '../../../screens/chat/components/message_bubble.dart';
-import '../../../screens/chat/components/service_status_card.dart';
+import '../components/technician_service_status_card.dart'; // Cambiado aquí
 import 'package:firebase_auth/firebase_auth.dart';
 
 class TechnicianChatDetailScreen extends StatefulWidget {
@@ -35,26 +35,32 @@ class _TechnicianChatDetailScreenState
 
     // Start listening for messages
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Important: Get ViewModel after widget tree is built
+      print(
+        "TechnicianChatDetailScreen: PostFrameCallback for chatId: ${widget.chatId}",
+      );
+
+      // Importante: obtener ViewModels después de que se construya el árbol de widgets
       final chatViewModel = Provider.of<ChatDetailViewModel>(
         context,
         listen: false,
       );
 
-      // Get ServiceStatusViewModel
+      // Obtener ServiceStatusViewModel
       final serviceViewModel = Provider.of<ServiceStatusViewModel>(
         context,
         listen: false,
       );
 
-      // Start message listening
+      // Iniciar escucha de mensajes
+      print("TechnicianChatDetailScreen: Starting to listen for messages");
       chatViewModel.startListeningToMessages(widget.chatId);
-      print('Listening to messages for chat: ${widget.chatId}');
 
-      // Load service info for this chat
+      // Cargar información del servicio para este chat
+      print("TechnicianChatDetailScreen: Loading service info for chat");
       serviceViewModel.loadServiceByChatId(widget.chatId);
 
-      // Get client ID
+      // Obtener ID del cliente
+      print("TechnicianChatDetailScreen: Getting client ID");
       _getClientId();
     });
   }
@@ -98,18 +104,13 @@ class _TechnicianChatDetailScreenState
       ),
       body: Column(
         children: [
-          // Service status card with action buttons
-          ServiceStatusCard(chatId: widget.chatId),
+          // Usar TechnicianServiceStatusCard en lugar de ServiceStatusCard
+          TechnicianServiceStatusCard(chatId: widget.chatId),
 
           // Message list
           Expanded(
             child: Consumer<ChatDetailViewModel>(
               builder: (context, viewModel, child) {
-                // Print state for debugging
-                print(
-                  'Chat view state: ${viewModel.state}, messages: ${viewModel.messages.length}',
-                );
-
                 if (viewModel.isLoading && viewModel.messages.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/enums/service_enums.dart';
 import '../../../../core/models/service_model.dart';
 import '../../../view_models/service_status_view_model.dart';
+import '../../../common/resource.dart';
 
 class TechnicianServiceStatusCard extends StatelessWidget {
   final String chatId;
@@ -13,23 +14,12 @@ class TechnicianServiceStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('Building TechnicianServiceStatusCard for chatId: $chatId');
+    print("Building TechnicianServiceStatusCard for chatId: $chatId");
 
     return Consumer<ServiceStatusViewModel>(
       builder: (context, viewModel, child) {
-        // Log para debugging
         print(
-          'TechnicianServiceStatusCard - BuildContext hash: ${context.hashCode}',
-        );
-        print('TechnicianServiceStatusCard - ViewModel: ${viewModel.hashCode}');
-        print(
-          'TechnicianServiceStatusCard - Service: ${viewModel.currentService?.id}',
-        );
-        print(
-          'TechnicianServiceStatusCard - isTechnician: ${viewModel.isTechnician}',
-        );
-        print(
-          'TechnicianServiceStatusCard - Service Status: ${viewModel.currentService?.status}',
+          "ServiceViewModel state: ${viewModel.state}, hasService: ${viewModel.currentService != null}",
         );
 
         // Si está cargando y no hay servicio, mostrar indicador
@@ -52,6 +42,7 @@ class TechnicianServiceStatusCard extends StatelessWidget {
 
         // Si no hay servicio asociado a este chat
         if (viewModel.currentService == null) {
+          print("No hay servicio asociado al chat");
           return Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -73,8 +64,12 @@ class TechnicianServiceStatusCard extends StatelessWidget {
           );
         }
 
-        // Si hay servicio, mostrar tarjeta completa
+        // Si hay servicio, mostrar tarjeta con estado y botón de edición
         final service = viewModel.currentService!;
+        print("Servicio encontrado con estado: ${service.status}");
+
+        // Verificar si es el técnico - siempre habilitamos el botón para el técnico
+        bool canEdit = true; // Siempre mostrar botón de edición en modo técnico
 
         return Container(
           padding: const EdgeInsets.all(12),
@@ -87,42 +82,44 @@ class TechnicianServiceStatusCard extends StatelessWidget {
               ),
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              // Fila superior: Título y estado
-              Row(
-                children: [
-                  Icon(
-                    _getStatusIcon(service.status),
-                    color: _getStatusColor(service.status),
-                    size: 20,
+              // Icono de estado
+              Icon(
+                _getStatusIcon(service.status),
+                color: _getStatusColor(service.status),
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+
+              // Texto del estado
+              Expanded(
+                child: Text(
+                  _getStatusText(service.status),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    fontSize: 16,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _getStatusText(service.status),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: _getStatusColor(service.status),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (service.agreedPrice != null)
-                    Text(
-                      'Precio: S/ ${service.agreedPrice!.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                ],
+                ),
               ),
 
-              // Detalles del servicio o mensaje según estado
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: _getTechnicianStatusMessage(service.status),
-              ),
+              // Precio si está disponible
+              if (service.agreedPrice != null)
+                Text(
+                  'S/ ${service.agreedPrice!.toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
 
-              // Botones de acción según el estado (específicos para técnicos)
-              _buildTechnicianActionButtons(context, viewModel, service),
+              // Botón de edición siempre visible para el técnico
+              IconButton(
+                icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
+                tooltip: 'Cambiar estado',
+                onPressed: () {
+                  print("Botón de edición presionado");
+                  _showStatusChangeDialog(context, viewModel, service.status);
+                },
+              ),
             ],
           ),
         );
@@ -130,147 +127,136 @@ class TechnicianServiceStatusCard extends StatelessWidget {
     );
   }
 
-  // Construir botones específicos para técnicos
-  Widget _buildTechnicianActionButtons(
+  // Mostrar diálogo para cambiar estado
+  void _showStatusChangeDialog(
     BuildContext context,
     ServiceStatusViewModel viewModel,
-    ServiceModel service,
+    ServiceStatus currentStatus,
   ) {
-    // Primero verificamos que sea técnico
-    if (!viewModel.isTechnician) {
-      return SizedBox.shrink();
+    print("Showing status change dialog for status: $currentStatus");
+
+    // Determinar siguiente estado posible y otras opciones disponibles
+    List<ServiceStatus> availableStatuses = _getAvailableStatuses(
+      currentStatus,
+    );
+
+    if (availableStatuses.isEmpty) {
+      // Si no hay estados disponibles, mostrar un mensaje
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se puede cambiar el estado actual'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
     }
 
-    // Ahora dependiendo del estado, mostramos botones específicos
-    switch (service.status) {
-      case ServiceStatus.accepted:
-        // Para servicio aceptado: botón para iniciar trabajo
-        return Padding(
-          padding: const EdgeInsets.only(top: 12.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                print('Botón Iniciar trabajo presionado');
-                final result = await viewModel.startService();
-                if (result.isError && context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(result.error!)));
-                } else if (result.isSuccess && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Servicio iniciado correctamente'),
-                      backgroundColor: Colors.green,
+    // Mostrar un diálogo con las opciones de estado disponibles
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Cambiar estado del servicio'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children:
+                availableStatuses.map((status) {
+                  return ListTile(
+                    leading: Icon(
+                      _getStatusIcon(status),
+                      color: _getStatusColor(status),
                     ),
+                    title: Text(_getStatusText(status)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _changeServiceStatus(context, viewModel, status);
+                    },
                   );
-                }
-              },
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Iniciar trabajo'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
+                }).toList(),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCELAR'),
+            ),
+          ],
         );
+      },
+    );
+  }
 
+  // Obtener estados disponibles según el estado actual
+  List<ServiceStatus> _getAvailableStatuses(ServiceStatus currentStatus) {
+    switch (currentStatus) {
+      case ServiceStatus.offered:
+        return [ServiceStatus.accepted];
+      case ServiceStatus.accepted:
+        return [ServiceStatus.inProgress];
       case ServiceStatus.inProgress:
-        // Para servicio en progreso: botón para marcar como completado
-        return Padding(
-          padding: const EdgeInsets.only(top: 12.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                print('Botón Marcar como completado presionado');
-                // Pedir confirmación
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder:
-                      (context) => AlertDialog(
-                        title: Text('Confirmar finalización'),
-                        content: Text(
-                          '¿Has completado el trabajo? El cliente será notificado para que confirme.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text('CANCELAR'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text('CONFIRMAR'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                            ),
-                          ),
-                        ],
-                      ),
-                );
-
-                if (confirmed == true) {
-                  final result = await viewModel.completeService();
-                  if (result.isError && context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(result.error!)));
-                  } else if (result.isSuccess && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Servicio marcado como completado'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.check_circle),
-              label: const Text('Marcar como completado'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ),
-        );
-
+        return [ServiceStatus.completed];
+      case ServiceStatus.completed:
+        return [ServiceStatus.rated];
+      // Para otros estados, puedes definir transiciones adicionales si es necesario
       default:
-        return SizedBox.shrink();
+        return [];
     }
   }
 
-  // Obtener mensaje específico para técnicos según el estado
-  Widget _getTechnicianStatusMessage(ServiceStatus status) {
+  // Método para cambiar estado directamente
+  void _changeServiceStatus(
+    BuildContext context,
+    ServiceStatusViewModel viewModel,
+    ServiceStatus newStatus,
+  ) async {
+    print("Changing service status to: $newStatus");
+    bool success = false;
     String message = '';
 
-    switch (status) {
-      case ServiceStatus.offered:
-        message = 'Has enviado una propuesta. Esperando respuesta del cliente.';
-        break;
-      case ServiceStatus.accepted:
-        message = 'El cliente aceptó tu propuesta. Puedes iniciar el trabajo.';
-        break;
-      case ServiceStatus.inProgress:
+    try {
+      if (newStatus == ServiceStatus.inProgress) {
+        print("Starting service...");
+        final result = await viewModel.startService();
+        success = result.isSuccess;
         message =
-            'Estás realizando el servicio. Al finalizar, márcalo como completado.';
-        break;
-      case ServiceStatus.completed:
+            success
+                ? 'Estado cambiado a En Progreso'
+                : result.error ?? 'Error al iniciar el trabajo';
+      } else if (newStatus == ServiceStatus.completed) {
+        print("Completing service...");
+        final result = await viewModel.completeService();
+        success = result.isSuccess;
         message =
-            'Has marcado el servicio como completado. Esperando confirmación del cliente.';
-        break;
-      case ServiceStatus.rated:
-        message = 'Servicio completado y calificado. ¡Gracias por tu trabajo!';
-        break;
-      default:
-        message = 'Estado actual del servicio: ${_getStatusText(status)}';
+            success
+                ? 'Se ha enviado solicitud de confirmación al cliente'
+                : result.error ?? 'Error al completar el trabajo';
+      } else if (newStatus == ServiceStatus.accepted) {
+        // Simulamos aceptación del cliente
+        success = true;
+        message = 'Estado cambiado a Aceptado';
+        // Aquí deberías implementar la lógica real para aceptar el servicio
+      } else if (newStatus == ServiceStatus.rated) {
+        // Simulamos que se ha calificado el servicio
+        success = true;
+        message = 'Estado cambiado a Finalizado';
+        // Aquí deberías implementar la lógica real para calificar el servicio
+      }
+    } catch (e) {
+      success = false;
+      message = e.toString();
+      print("Error changing service status: $e");
     }
 
-    return Text(
-      message,
-      style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-    );
+    print("Service status change result: success=$success, message=$message");
+
+    // Mostrar resultado como SnackBar
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 
   // Obtener color según estado
@@ -325,23 +311,23 @@ class TechnicianServiceStatusCard extends StatelessWidget {
   String _getStatusText(ServiceStatus status) {
     switch (status) {
       case ServiceStatus.pending:
-        return 'Pendiente';
+        return 'PENDIENTE';
       case ServiceStatus.offered:
-        return 'Propuesta enviada';
+        return 'PROPUESTA ENVIADA';
       case ServiceStatus.accepted:
-        return 'Servicio aceptado';
+        return 'SERVICIO ACEPTADO';
       case ServiceStatus.inProgress:
-        return 'Trabajo en progreso';
+        return 'TRABAJO EN PROGRESO';
       case ServiceStatus.completed:
-        return 'Trabajo completado';
+        return 'TRABAJO COMPLETADO';
       case ServiceStatus.rated:
-        return 'Servicio finalizado';
+        return 'SERVICIO FINALIZADO';
       case ServiceStatus.cancelled:
-        return 'Servicio cancelado';
+        return 'SERVICIO CANCELADO';
       case ServiceStatus.rejected:
-        return 'Propuesta rechazada';
+        return 'PROPUESTA RECHAZADA';
       default:
-        return 'Estado desconocido';
+        return 'ESTADO DESCONOCIDO';
     }
   }
 }

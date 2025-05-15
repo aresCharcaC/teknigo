@@ -1,5 +1,4 @@
 // lib/presentation/screens/chat/chat_detail_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -47,7 +46,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
       // Start message listening
       chatViewModel.startListeningToMessages(widget.chatId);
-      print('Listening to messages for chat: ${widget.chatId}');
 
       // Load service info for this chat
       serviceViewModel.loadServiceByChatId(widget.chatId);
@@ -96,18 +94,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       body: Column(
         children: [
-          // Service status card with action buttons
+          // Service status card
           ServiceStatusCard(chatId: widget.chatId),
 
           // Message list
           Expanded(
             child: Consumer<ChatDetailViewModel>(
               builder: (context, viewModel, child) {
-                // Print state for debugging
-                print(
-                  'Chat view state: ${viewModel.state}, messages: ${viewModel.messages.length}',
-                );
-
                 if (viewModel.isLoading && viewModel.messages.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -216,41 +209,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
           ),
 
-          // If there's an operation in progress (e.g., sending image)
-          Consumer<ChatDetailViewModel>(
-            builder: (context, viewModel, _) {
-              if (viewModel.isLoading) {
-                return LinearProgressIndicator();
-              }
-              return SizedBox.shrink();
-            },
-          ),
-
           // Message input area
           Consumer<ChatDetailViewModel>(
             builder: (context, viewModel, _) {
               return ChatInput(
                 onSendMessage: (text) {
-                  print('Sending message: $text');
                   viewModel.sendTextMessage(text);
                   _scrollToBottom();
                 },
                 onSendImage: () async {
-                  print('Trying to send image...');
                   final success = await viewModel.sendImageFromGallery();
-                  print('Image send result: $success');
                   if (success) _scrollToBottom();
                 },
                 onTakePhoto: () async {
-                  print('Trying to take photo...');
                   final success = await viewModel.sendImageFromCamera();
-                  print('Photo send result: $success');
                   if (success) _scrollToBottom();
                 },
                 onSendLocation: () async {
-                  print('Trying to send location...');
                   final success = await viewModel.sendCurrentLocation();
-                  print('Location send result: $success');
                   if (success) _scrollToBottom();
                 },
               );

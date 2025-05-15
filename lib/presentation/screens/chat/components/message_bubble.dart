@@ -6,7 +6,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/models/message_model.dart';
 import 'proposal_message.dart';
+import 'package:provider/provider.dart';
 import 'location_message.dart';
+import './confirmation_message_bubble.dart';
+import '../../../view_models/service_status_view_model.dart';
 
 class MessageBubble extends StatelessWidget {
   final MessageModel message;
@@ -32,6 +35,50 @@ class MessageBubble extends StatelessWidget {
           price: message.metadata?['price'] ?? 0.0,
           availability: message.metadata?['availability'] ?? 'No especificado',
         );
+        break;
+
+      case MessageType.confirmation:
+        // Verificar si el mensaje es de confirmación de completado
+        if (message.metadata?['confirmationType'] == 'completion') {
+          // Verificar si el usuario actual es el cliente
+          final isClient =
+              FirebaseAuth.instance.currentUser?.uid ==
+              message.metadata?['clientId'];
+
+          // Solo el cliente puede responder
+          if (isClient) {
+            messageContent = ConfirmationMessageBubble(
+              message: message.content,
+              hasResponded: message.metadata?['responded'] == true,
+              onConfirm: () {
+                // Llamar a método para confirmar completado
+                Provider.of<ServiceStatusViewModel>(
+                  context,
+                  listen: false,
+                ).confirmCompletionAndRate();
+              },
+              onReject: () {
+                // Llamar a método para rechazar completado
+                Provider.of<ServiceStatusViewModel>(
+                  context,
+                  listen: false,
+                ).rejectCompletion();
+              },
+            );
+          } else {
+            // Para el técnico, solo mostrar el mensaje
+            messageContent = Text(
+              message.content,
+              style: TextStyle(
+                fontSize: 16,
+                color: isMe ? Colors.white : Colors.black87,
+              ),
+            );
+          }
+        } else {
+          // Otros tipos de confirmación
+          messageContent = Text(message.content);
+        }
         break;
 
       case MessageType.image:

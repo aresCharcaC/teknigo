@@ -87,10 +87,12 @@ class ChatRepository {
       return Stream.value([]);
     }
 
-    // Consulta simplificada: primero obtenemos los chats donde el usuario es cliente
+    print('ChatRepository: Getting client chats for user: ${user.uid}');
+
     return _firestore
         .collection('chats')
         .where('clientId', isEqualTo: user.uid)
+        .where('isActive', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
           try {
@@ -98,16 +100,15 @@ class ChatRepository {
             for (var doc in snapshot.docs) {
               try {
                 final chat = ChatModel.fromFirestore(doc);
-                if (chat.isActive) {
-                  chats.add(chat);
-                }
+                chats.add(chat);
               } catch (e) {
-                print('Error converting chat document: $e');
+                print('ChatRepository: Error converting chat document: $e');
               }
             }
+            print('ChatRepository: Returning ${chats.length} client chats');
             return chats;
           } catch (e) {
-            print('Error processing chats: $e');
+            print('ChatRepository: Error processing client chats: $e');
             return <ChatModel>[];
           }
         });
@@ -120,9 +121,12 @@ class ChatRepository {
       return Stream.value([]);
     }
 
+    print('ChatRepository: Getting technician chats for user: ${user.uid}');
+
     return _firestore
         .collection('chats')
         .where('technicianId', isEqualTo: user.uid)
+        .where('isActive', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
           try {
@@ -130,16 +134,15 @@ class ChatRepository {
             for (var doc in snapshot.docs) {
               try {
                 final chat = ChatModel.fromFirestore(doc);
-                if (chat.isActive) {
-                  chats.add(chat);
-                }
+                chats.add(chat);
               } catch (e) {
-                print('Error converting chat document: $e');
+                print('ChatRepository: Error converting chat document: $e');
               }
             }
+            print('ChatRepository: Returning ${chats.length} technician chats');
             return chats;
           } catch (e) {
-            print('Error processing technician chats: $e');
+            print('ChatRepository: Error processing technician chats: $e');
             return <ChatModel>[];
           }
         });
@@ -162,6 +165,63 @@ class ChatRepository {
             return <MessageModel>[];
           }
         });
+  }
+
+  // Enviar mensaje de confirmación de completado
+  Future<bool> sendCompletionConfirmationMessage({
+    required String chatId,
+    required String clientId,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Crear referencia para el nuevo mensaje
+      final messageRef = _firestore.collection('messages').doc();
+
+      // Crear el mensaje
+      final message = MessageModel(
+        id: messageRef.id,
+        chatId: chatId,
+        senderId: user.uid,
+        type: MessageType.confirmation,
+        content:
+            "El técnico ha marcado el trabajo como completado. ¿Confirmas que el trabajo está terminado?",
+        metadata: {
+          'confirmationType': 'completion',
+          'clientId': clientId,
+          'responded': false,
+        },
+        timestamp: DateTime.now(),
+      );
+
+      // Guardar el mensaje
+      await messageRef.set(message.toFirestore());
+
+      // Actualizar el último mensaje del chat
+      await _firestore.collection('chats').doc(chatId).update({
+        'lastMessage': "✅ Confirmación de trabajo completado",
+        'lastMessageTime': Timestamp.fromDate(DateTime.now()),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error al enviar mensaje de confirmación: $e');
+      return false;
+    }
+  }
+
+  // Método para actualizar un mensaje de confirmación como respondido
+  Future<bool> updateConfirmationMessageAsResponded(String messageId) async {
+    try {
+      await _firestore.collection('messages').doc(messageId).update({
+        'metadata.responded': true,
+      });
+      return true;
+    } catch (e) {
+      print('Error al actualizar mensaje de confirmación: $e');
+      return false;
+    }
   }
 
   // Enviar un mensaje de texto

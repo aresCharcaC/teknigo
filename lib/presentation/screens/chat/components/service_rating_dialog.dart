@@ -1,5 +1,4 @@
 // lib/presentation/screens/chat/components/service_rating_dialog.dart
-
 import 'package:flutter/material.dart';
 
 class ServiceRatingDialog extends StatefulWidget {

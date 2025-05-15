@@ -2,7 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-enum MessageType { text, image, location, proposal }
+enum MessageType { text, image, location, proposal, confirmation }
 
 class MessageModel {
   final String id;
@@ -61,6 +61,8 @@ class MessageModel {
         return MessageType.location;
       case 'proposal':
         return MessageType.proposal;
+      case 'confirmation':
+        return MessageType.confirmation;
       default:
         return MessageType.text;
     }
