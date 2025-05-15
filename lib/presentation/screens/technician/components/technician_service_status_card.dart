@@ -135,7 +135,7 @@ class TechnicianServiceStatusCard extends StatelessWidget {
   ) {
     print("Showing status change dialog for status: $currentStatus");
 
-    // Determinar siguiente estado posible y otras opciones disponibles
+    // Obtener todos los estados disponibles
     List<ServiceStatus> availableStatuses = _getAvailableStatuses(
       currentStatus,
     );
@@ -156,28 +156,31 @@ class TechnicianServiceStatusCard extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Cambiar estado del servicio'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children:
-                availableStatuses.map((status) {
-                  return ListTile(
-                    leading: Icon(
-                      _getStatusIcon(status),
-                      color: _getStatusColor(status),
-                    ),
-                    title: Text(_getStatusText(status)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _changeServiceStatus(context, viewModel, status);
-                    },
-                  );
-                }).toList(),
+          title: Text('Cambiar estado del servicio'),
+          content: Container(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children:
+                  availableStatuses.map((status) {
+                    return ListTile(
+                      leading: Icon(
+                        _getStatusIcon(status),
+                        color: _getStatusColor(status),
+                      ),
+                      title: Text(_getStatusText(status)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _changeServiceStatus(context, viewModel, status);
+                      },
+                    );
+                  }).toList(),
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('CANCELAR'),
+              child: Text('CANCELAR'),
             ),
           ],
         );
@@ -187,19 +190,15 @@ class TechnicianServiceStatusCard extends StatelessWidget {
 
   // Obtener estados disponibles según el estado actual
   List<ServiceStatus> _getAvailableStatuses(ServiceStatus currentStatus) {
-    switch (currentStatus) {
-      case ServiceStatus.offered:
-        return [ServiceStatus.accepted];
-      case ServiceStatus.accepted:
-        return [ServiceStatus.inProgress];
-      case ServiceStatus.inProgress:
-        return [ServiceStatus.completed];
-      case ServiceStatus.completed:
-        return [ServiceStatus.rated];
-      // Para otros estados, puedes definir transiciones adicionales si es necesario
-      default:
-        return [];
-    }
+    // Siempre permitir todos los estados excepto el actual
+    return [
+      ServiceStatus.pending,
+      ServiceStatus.offered,
+      ServiceStatus.accepted,
+      ServiceStatus.inProgress,
+      ServiceStatus.completed,
+      ServiceStatus.rated,
+    ].where((status) => status != currentStatus).toList();
   }
 
   // Método para cambiar estado directamente
@@ -209,53 +208,36 @@ class TechnicianServiceStatusCard extends StatelessWidget {
     ServiceStatus newStatus,
   ) async {
     print("Changing service status to: $newStatus");
-    bool success = false;
-    String message = '';
 
     try {
-      if (newStatus == ServiceStatus.inProgress) {
-        print("Starting service...");
-        final result = await viewModel.startService();
-        success = result.isSuccess;
-        message =
-            success
-                ? 'Estado cambiado a En Progreso'
-                : result.error ?? 'Error al iniciar el trabajo';
-      } else if (newStatus == ServiceStatus.completed) {
-        print("Completing service...");
-        final result = await viewModel.completeService();
-        success = result.isSuccess;
-        message =
-            success
-                ? 'Se ha enviado solicitud de confirmación al cliente'
-                : result.error ?? 'Error al completar el trabajo';
-      } else if (newStatus == ServiceStatus.accepted) {
-        // Simulamos aceptación del cliente
-        success = true;
-        message = 'Estado cambiado a Aceptado';
-        // Aquí deberías implementar la lógica real para aceptar el servicio
-      } else if (newStatus == ServiceStatus.rated) {
-        // Simulamos que se ha calificado el servicio
-        success = true;
-        message = 'Estado cambiado a Finalizado';
-        // Aquí deberías implementar la lógica real para calificar el servicio
+      // Usar el nuevo método genérico para cambiar estado
+      final result = await viewModel.changeServiceStatus(newStatus);
+
+      bool success = result.isSuccess;
+      String message =
+          success
+              ? 'Estado cambiado a ${_getStatusText(newStatus)}'
+              : result.error ?? 'Error al cambiar el estado';
+
+      // Mostrar resultado como SnackBar
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      success = false;
-      message = e.toString();
       print("Error changing service status: $e");
-    }
-
-    print("Service status change result: success=$success, message=$message");
-
-    // Mostrar resultado como SnackBar
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: success ? Colors.green : Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

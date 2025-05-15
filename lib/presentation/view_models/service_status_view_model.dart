@@ -68,51 +68,28 @@ class ServiceStatusViewModel extends BaseViewModel {
         return Resource.error('No hay servicio activo');
       }
 
-      // No verificamos roles para permitir cambios más flexibles
-
       setLoading();
 
-      bool result = false;
+      // Guardar el estado anterior para mensajes informativos
+      final oldStatus = _currentService!.status;
 
-      // Implementar la lógica según el estado destino
-      switch (newStatus) {
-        case ServiceStatus.accepted:
-          result = await _repository.updateServiceStatus(
-            _currentService!.id,
-            newStatus,
-          );
-          break;
-        case ServiceStatus.inProgress:
-          result = await _repository.startService(_currentService!.id);
-          break;
-        case ServiceStatus.completed:
-          result = await _repository.completeService(_currentService!.id);
-          break;
-        case ServiceStatus.rated:
-          // Calificar con 5 estrellas por defecto
-          result = await _repository.rateService(
-            _currentService!.id,
-            5.0,
-            "Trabajo satisfactorio",
-          );
-          break;
-        default:
-          result = await _repository.updateServiceStatus(
-            _currentService!.id,
-            newStatus,
-          );
-          break;
-      }
+      // Llamar al método genérico del repositorio
+      bool result = await _repository.updateServiceStatus(
+        _currentService!.id,
+        newStatus,
+      );
 
       if (result) {
-        // Enviar mensaje según el nuevo estado
-        String statusMessage = _getStatusChangeMessage(newStatus);
+        // Enviar mensaje informativo sobre el cambio de estado
+        String statusMessage =
+            "🔄 Estado cambiado de ${_getStatusText(oldStatus)} a ${_getStatusText(newStatus)}";
+
         await _chatRepository.sendTextMessage(
           chatId: _currentService!.chatId,
           content: statusMessage,
         );
 
-        // Update local service
+        // Actualizar servicio local
         _currentService = _currentService!.copyWith(status: newStatus);
       }
 
@@ -122,6 +99,30 @@ class ServiceStatusViewModel extends BaseViewModel {
       final errorMessage = 'Error al cambiar el estado del servicio: $e';
       setError(errorMessage);
       return Resource.error(errorMessage);
+    }
+  }
+
+  // Obtener texto según estado (para mensajes)
+  String _getStatusText(ServiceStatus status) {
+    switch (status) {
+      case ServiceStatus.pending:
+        return 'PENDIENTE';
+      case ServiceStatus.offered:
+        return 'PROPUESTA ENVIADA';
+      case ServiceStatus.accepted:
+        return 'SERVICIO ACEPTADO';
+      case ServiceStatus.inProgress:
+        return 'TRABAJO EN PROGRESO';
+      case ServiceStatus.completed:
+        return 'TRABAJO COMPLETADO';
+      case ServiceStatus.rated:
+        return 'SERVICIO FINALIZADO';
+      case ServiceStatus.cancelled:
+        return 'SERVICIO CANCELADO';
+      case ServiceStatus.rejected:
+        return 'PROPUESTA RECHAZADA';
+      default:
+        return 'ESTADO DESCONOCIDO';
     }
   }
 
