@@ -1,4 +1,4 @@
-// lib/presentation/screens/technician/technician_mode_screen.dart (actualizado)
+// lib/presentation/screens/technician/technician_mode_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
@@ -7,13 +7,9 @@ import '../../view_models/technician_view_model.dart';
 import '../../view_models/technician_request_view_model.dart';
 import '../../widgets/custom_drawer.dart';
 import 'profile/technician_profile_screen.dart';
-import 'chats/technician_chats_screen.dart';
+import 'chats/technician_chats_screen.dart'; // Asegúrate de importar la pantalla correcta
 import 'requests/technician_requests_screen.dart';
 
-/// Pantalla principal del modo técnico
-///
-/// Esta pantalla es el punto de entrada al modo técnico y
-/// contiene la navegación entre las diferentes secciones.
 class TechnicianModeScreen extends StatefulWidget {
   final Function(bool)? onSwitchMode;
 
@@ -51,11 +47,11 @@ class _TechnicianModeScreenState extends State<TechnicianModeScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Lista de pantallas de técnico
+    // Lista de pantallas de técnico - asegúrate de que estás usando la clase TechnicianChatsScreen
     final List<Widget> _technicianScreens = [
       const TechnicianProfileScreen(),
-      const TechnicianChatsScreen(),
-      const TechnicianRequestsScreen(), // Ahora sí usamos esta pantalla
+      const TechnicianChatsScreen(), // Asegúrate de que esta es la pantalla correcta
+      const TechnicianRequestsScreen(),
     ];
 
     return FadeTransition(
@@ -63,7 +59,6 @@ class _TechnicianModeScreenState extends State<TechnicianModeScreen>
       child: MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => TechnicianViewModel()),
-          // Añadimos el provider para la vista de solicitudes
           ChangeNotifierProvider(create: (_) => TechnicianRequestViewModel()),
         ],
         child: Consumer<TechnicianViewModel>(

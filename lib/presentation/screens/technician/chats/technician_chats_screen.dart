@@ -1,10 +1,10 @@
-// lib/presentation/screens/technician/chats/technician_chats_screen.dart (corregido)
+// lib/presentation/screens/technician/chats/technician_chats_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/models/chat_model.dart'; // Importar el modelo de chat
+import '../../../../core/models/chat_model.dart';
 import '../../../view_models/chat_list_view_model.dart';
-import '../../chat/chat_detail_screen.dart';
+import 'technician_chat_detail_screen.dart'; // Importamos la nueva pantalla
 
 class TechnicianChatsScreen extends StatefulWidget {
   const TechnicianChatsScreen({Key? key}) : super(key: key);
@@ -33,7 +33,7 @@ class _TechnicianChatsScreenState extends State<TechnicianChatsScreen> {
       builder: (context, viewModel, child) {
         // Mostrar indicador de carga
         if (viewModel.isLoading) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         }
 
         // Si hay error al cargar chats
@@ -43,22 +43,22 @@ class _TechnicianChatsScreenState extends State<TechnicianChatsScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
                   'Error al cargar chats',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
                   viewModel.errorMessage,
                   style: TextStyle(color: Colors.red.shade700),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: () => viewModel.startListeningToChats(),
-                  icon: Icon(Icons.refresh),
-                  label: Text('Reintentar'),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reintentar'),
                 ),
               ],
             ),
@@ -76,22 +76,22 @@ class _TechnicianChatsScreenState extends State<TechnicianChatsScreen> {
                   size: 64,
                   color: Colors.grey.shade400,
                 ),
-                SizedBox(height: 16),
-                Text(
+                const SizedBox(height: 16),
+                const Text(
                   'No tienes chats activos',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 8),
-                Text(
+                const SizedBox(height: 8),
+                const Text(
                   'Envía propuestas a clientes para iniciar conversaciones',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: () => viewModel.startListeningToChats(),
-                  icon: Icon(Icons.refresh),
-                  label: Text('Actualizar'),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Actualizar'),
                 ),
               ],
             ),
@@ -115,7 +115,7 @@ class _TechnicianChatsScreenState extends State<TechnicianChatsScreen> {
     );
   }
 
-  // Corregido: agregamos el parámetro del chat y el índice
+  // Construir un elemento de chat
   Widget _buildChatItem(
     BuildContext context,
     ChatModel chat,
@@ -129,7 +129,7 @@ class _TechnicianChatsScreenState extends State<TechnicianChatsScreen> {
       ),
       title: Text(
         'Cliente #${index + 1}', // Reemplazar con nombre real cuando esté disponible
-        style: TextStyle(fontWeight: FontWeight.bold),
+        style: const TextStyle(fontWeight: FontWeight.bold),
       ),
       subtitle: Text(
         chat.lastMessage ?? 'No hay mensajes aún',
@@ -142,12 +142,12 @@ class _TechnicianChatsScreenState extends State<TechnicianChatsScreen> {
         children: [
           Text(
             _formatDateTime(chat.lastMessageTime ?? chat.createdAt),
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
-          SizedBox(height: 4),
-          if (chat.requestId != null && chat.requestId!.isNotEmpty)
+          const SizedBox(height: 4),
+          if (chat.requestId.isNotEmpty)
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.green.shade100,
                 borderRadius: BorderRadius.circular(12),
@@ -160,17 +160,18 @@ class _TechnicianChatsScreenState extends State<TechnicianChatsScreen> {
         ],
       ),
       onTap: () {
-        // Navegar al detalle del chat
+        // Navegar a la pantalla de detalle del chat
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ChatDetailScreen(chatId: chat.id),
+            builder: (context) => TechnicianChatDetailScreen(chatId: chat.id),
           ),
         );
       },
     );
   }
 
+  // Formatear fecha/hora
   String _formatDateTime(DateTime dateTime) {
     final difference = DateTime.now().difference(dateTime);
 
