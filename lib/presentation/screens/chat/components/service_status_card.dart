@@ -1,10 +1,12 @@
-// lib/presentation/screens/chat/components/service_status_card.dart (actualizado)
+// lib/presentation/screens/chat/components/service_status_card.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/enums/service_enums.dart';
 import '../../../../core/models/service_model.dart';
 import '../../../view_models/service_status_view_model.dart';
 import 'price_confirmation_dialog.dart';
+import 'service_rating_dialog.dart';
 
 class ServiceStatusCard extends StatelessWidget {
   final String chatId;
@@ -17,7 +19,6 @@ class ServiceStatusCard extends StatelessWidget {
       builder: (context, viewModel, child) {
         // Si está cargando y no hay servicio, mostrar indicador
         if (viewModel.isLoading && viewModel.currentService == null) {
-          print('ServiceStatusCard: Cargando...');
           return Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -36,7 +37,6 @@ class ServiceStatusCard extends StatelessWidget {
 
         // Si no hay servicio asociado a este chat todavía o hay error
         if (viewModel.currentService == null) {
-          print('ServiceStatusCard: No hay servicio');
           if (viewModel.hasError) {
             print('ServiceStatusCard: Error: ${viewModel.errorMessage}');
           }
@@ -64,190 +64,193 @@ class ServiceStatusCard extends StatelessWidget {
 
         // Si hay servicio, mostrar tarjeta completa
         final service = viewModel.currentService!;
-        print(
-          'ServiceStatusCard: Mostrando servicio: ${service.id}, estado: ${service.status}',
-        );
 
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _getStatusColor(service.status).withOpacity(0.1),
-            border: Border(
-              bottom: BorderSide(
-                color: _getStatusColor(service.status),
-                width: 1,
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Fila superior: Título y estado
-              Row(
-                children: [
-                  Icon(
-                    _getStatusIcon(service.status),
+        return Column(
+          children: [
+            // Tarjeta de estado
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _getStatusColor(service.status).withOpacity(0.1),
+                border: Border(
+                  bottom: BorderSide(
                     color: _getStatusColor(service.status),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _getStatusText(service.status),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: _getStatusColor(service.status),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (service.agreedPrice != null)
-                    Text(
-                      'Precio: S/ ${service.agreedPrice!.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                ],
-              ),
-
-              // Mostrar roles para depuración
-              if (false) // Cambiar a true para depuración
-                Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    'Debug: isClient=${viewModel.isClient}, isTechnician=${viewModel.isTechnician}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    width: 1,
                   ),
                 ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Fila superior: Título y estado
+                  Row(
+                    children: [
+                      Icon(
+                        _getStatusIcon(service.status),
+                        color: _getStatusColor(service.status),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _getStatusText(service.status),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _getStatusColor(service.status),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (service.agreedPrice != null)
+                        Text(
+                          'Precio: S/ ${service.agreedPrice!.toStringAsFixed(2)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                    ],
+                  ),
 
-              // Detalles del servicio o mensaje según estado
-              _buildServiceDetails(context, service),
+                  // Detalles del servicio según estado
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _getStatusMessage(service.status, viewModel.isClient),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-              // Botones de acción según el estado y rol
-              _buildActionButtons(context, viewModel),
-            ],
-          ),
+            // Sección de botones de acción según el estado y rol del usuario
+            if (_shouldShowActionButtons(service.status, viewModel))
+              _buildActionButtonsSection(context, service, viewModel),
+          ],
         );
       },
     );
   }
 
-  // Construir detalles del servicio según estado
-  Widget _buildServiceDetails(BuildContext context, ServiceModel service) {
-    // Mensajes según estado
-    String statusMessage = '';
-
-    switch (service.status) {
-      case ServiceStatus.offered:
-        statusMessage =
-            'El técnico te ha enviado una propuesta para este servicio.';
-        break;
-      case ServiceStatus.accepted:
-        statusMessage =
-            'Has aceptado esta propuesta. El técnico pronto iniciará el trabajo.';
-        break;
-      case ServiceStatus.inProgress:
-        statusMessage =
-            'El técnico está realizando el trabajo en este momento.';
-        break;
-      case ServiceStatus.completed:
-        statusMessage = 'El técnico ha marcado este servicio como completado.';
-        break;
-      case ServiceStatus.rated:
-        statusMessage = 'Este servicio ha sido completado y calificado.';
-        break;
-      default:
-        return SizedBox.shrink(); // No mostrar mensaje para otros estados
-    }
-
-    // Mostrar el mensaje si hay
-    if (statusMessage.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8.0),
-        child: Text(
-          statusMessage,
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-        ),
-      );
-    }
-
-    return SizedBox.shrink();
-  }
-
-  // Método para construir botones de acción según estado y rol
-  Widget _buildActionButtons(
-    BuildContext context,
+  // Determinar si se deben mostrar botones de acción
+  bool _shouldShowActionButtons(
+    ServiceStatus status,
     ServiceStatusViewModel viewModel,
   ) {
-    final service = viewModel.currentService!;
-
-    // Si no es cliente ni técnico, no mostrar botones
-    if (!viewModel.isClient && !viewModel.isTechnician) {
-      return const SizedBox.shrink();
+    // Mostrar botones para técnico en estos estados
+    if (viewModel.isTechnician) {
+      return status == ServiceStatus.accepted ||
+          status == ServiceStatus.inProgress;
     }
 
+    // Mostrar botones para cliente en estos estados
+    if (viewModel.isClient) {
+      return status == ServiceStatus.offered ||
+          status == ServiceStatus.completed;
+    }
+
+    return false;
+  }
+
+  // Sección dedicada para botones de acción con estilo destacado
+  Widget _buildActionButtonsSection(
+    BuildContext context,
+    ServiceModel service,
+    ServiceStatusViewModel viewModel,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Acciones disponibles:',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          SizedBox(height: 12),
+          _buildActionButtons(context, service, viewModel),
+        ],
+      ),
+    );
+  }
+
+  // Botones de acción según estado y rol
+  Widget _buildActionButtons(
+    BuildContext context,
+    ServiceModel service,
+    ServiceStatusViewModel viewModel,
+  ) {
     // Para cliente cuando recibe una propuesta (offered)
     if (viewModel.isClient && service.status == ServiceStatus.offered) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 12.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {
-                  // Aquí iría la lógica para rechazar la propuesta
-                  // (no implementada en esta fase)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Función no disponible por el momento'),
-                    ),
-                  );
-                },
-                child: Text('Rechazar'),
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () {
+                // Lógica para rechazar la propuesta (no implementada en esta fase)
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Función no disponible por el momento'),
+                  ),
+                );
+              },
+              icon: Icon(Icons.cancel, color: Colors.red),
+              label: Text('Rechazar propuesta'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                padding: EdgeInsets.symmetric(vertical: 12),
               ),
             ),
-            SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () {
-                  // Mostrar diálogo para confirmar precio
-                  _showPriceConfirmation(
-                    context,
-                    viewModel,
-                    service.price ?? 0,
-                  );
-                },
-                child: Text('Aceptar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Mostrar diálogo para confirmar precio
+                _showPriceConfirmation(context, viewModel, service.price ?? 0);
+              },
+              icon: Icon(Icons.check_circle),
+              label: Text('Aceptar propuesta'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 12),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     // Para técnico cuando el servicio está aceptado pero no iniciado
     if (viewModel.isTechnician && service.status == ServiceStatus.accepted) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 12.0),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () async {
-              final result = await viewModel.startService();
-              if (result.isError && context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(result.error!)));
-              }
-            },
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Iniciar trabajo'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () async {
+            final result = await viewModel.startService();
+            if (result.isError && context.mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(result.error!)));
+            } else if (result.isSuccess && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Servicio iniciado correctamente'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          },
+          icon: const Icon(Icons.play_arrow, size: 24),
+          label: const Text('INICIAR TRABAJO', style: TextStyle(fontSize: 16)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(vertical: 16),
           ),
         ),
       );
@@ -255,52 +258,60 @@ class ServiceStatusCard extends StatelessWidget {
 
     // Para técnico cuando el servicio está en progreso
     if (viewModel.isTechnician && service.status == ServiceStatus.inProgress) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 12.0),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () async {
-              // Pedir confirmación
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder:
-                    (context) => AlertDialog(
-                      title: Text('Confirmar finalización'),
-                      content: Text(
-                        '¿Has completado el trabajo? El cliente será notificado para que confirme.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: Text('CANCELAR'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text('CONFIRMAR'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                          ),
-                        ),
-                      ],
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () async {
+            // Pedir confirmación
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder:
+                  (context) => AlertDialog(
+                    title: Text('Confirmar finalización'),
+                    content: Text(
+                      '¿Has completado el trabajo? El cliente será notificado para que confirme.',
                     ),
-              );
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text('CANCELAR'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text('CONFIRMAR'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+            );
 
-              if (confirmed == true) {
-                final result = await viewModel.completeService();
-                if (result.isError && context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(result.error!)));
-                }
+            if (confirmed == true) {
+              final result = await viewModel.completeService();
+              if (result.isError && context.mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(result.error!)));
+              } else if (result.isSuccess && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Servicio marcado como completado'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               }
-            },
-            icon: const Icon(Icons.check_circle),
-            label: const Text('Marcar como completado'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
+            }
+          },
+          icon: const Icon(Icons.check_circle, size: 24),
+          label: const Text(
+            'MARCAR COMO COMPLETADO',
+            style: TextStyle(fontSize: 16),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(vertical: 16),
           ),
         ),
       );
@@ -308,54 +319,58 @@ class ServiceStatusCard extends StatelessWidget {
 
     // Para cliente cuando el técnico marcó como completado
     if (viewModel.isClient && service.status == ServiceStatus.completed) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 12.0),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              // Mostrar diálogo de confirmación
-              showDialog(
-                context: context,
-                builder:
-                    (context) => AlertDialog(
-                      title: Text('Confirmar servicio'),
-                      content: Text(
-                        '¿El técnico ha completado el trabajo satisfactoriamente?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text('NO, AÚN NO'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            // Luego implementaremos la calificación aquí
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Servicio confirmado como completado',
-                                ),
-                                backgroundColor: Colors.green,
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () {
+            // Mostrar diálogo de calificación
+            showDialog(
+              context: context,
+              builder:
+                  (context) => ServiceRatingDialog(
+                    onSubmit: (rating, comment) async {
+                      Navigator.pop(context);
+
+                      // Llamar a método para calificar servicio
+                      final result = await viewModel.rateService(
+                        rating,
+                        comment,
+                      );
+
+                      if (context.mounted) {
+                        if (result.isSuccess) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Servicio calificado correctamente',
                               ),
-                            );
-                          },
-                          child: Text('SÍ, CONFIRMAR'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-              );
-            },
-            icon: const Icon(Icons.thumb_up),
-            label: const Text('Confirmar completado'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                result.error ?? 'Error al calificar servicio',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+            );
+          },
+          icon: const Icon(Icons.star, size: 24),
+          label: const Text(
+            'CONFIRMAR Y CALIFICAR',
+            style: TextStyle(fontSize: 16),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(vertical: 16),
           ),
         ),
       );
@@ -400,6 +415,43 @@ class ServiceStatusCard extends StatelessWidget {
             },
           ),
     );
+  }
+
+  // Mensaje según estado
+  String _getStatusMessage(ServiceStatus status, bool isClient) {
+    if (isClient) {
+      // Mensajes para cliente
+      switch (status) {
+        case ServiceStatus.offered:
+          return 'El técnico te ha enviado una propuesta para este servicio.';
+        case ServiceStatus.accepted:
+          return 'Has aceptado esta propuesta. El técnico pronto iniciará el trabajo.';
+        case ServiceStatus.inProgress:
+          return 'El técnico está realizando el trabajo en este momento.';
+        case ServiceStatus.completed:
+          return 'El técnico ha marcado este servicio como completado. Por favor confirma y califica.';
+        case ServiceStatus.rated:
+          return 'Este servicio ha sido completado y calificado satisfactoriamente.';
+        default:
+          return 'Servicio en estado pendiente.';
+      }
+    } else {
+      // Mensajes para técnico
+      switch (status) {
+        case ServiceStatus.offered:
+          return 'Has enviado una propuesta para este servicio. Esperando respuesta del cliente.';
+        case ServiceStatus.accepted:
+          return 'El cliente ha aceptado tu propuesta. Puedes iniciar el trabajo cuando estés listo.';
+        case ServiceStatus.inProgress:
+          return 'Has iniciado este servicio. Cuando termines, márcalo como completado.';
+        case ServiceStatus.completed:
+          return 'Has marcado este servicio como completado. Esperando confirmación del cliente.';
+        case ServiceStatus.rated:
+          return 'El cliente ha calificado este servicio como completado.';
+        default:
+          return 'Servicio en estado pendiente.';
+      }
+    }
   }
 
   // Obtener color según estado
@@ -454,23 +506,21 @@ class ServiceStatusCard extends StatelessWidget {
   String _getStatusText(ServiceStatus status) {
     switch (status) {
       case ServiceStatus.pending:
-        return 'Pendiente';
+        return 'PENDIENTE';
       case ServiceStatus.offered:
-        return 'Propuesta enviada';
+        return 'PROPUESTA ENVIADA';
       case ServiceStatus.accepted:
-        return 'Servicio aceptado';
+        return 'SERVICIO ACEPTADO';
       case ServiceStatus.inProgress:
-        return 'Trabajo en progreso';
+        return 'TRABAJO EN PROGRESO';
       case ServiceStatus.completed:
-        return 'Trabajo completado';
+        return 'TRABAJO COMPLETADO';
       case ServiceStatus.rated:
-        return 'Servicio finalizado';
+        return 'SERVICIO FINALIZADO';
       case ServiceStatus.cancelled:
-        return 'Servicio cancelado';
+        return 'SERVICIO CANCELADO';
       case ServiceStatus.rejected:
-        return 'Propuesta rechazada';
-      default:
-        return 'Estado desconocido';
+        return 'PROPUESTA RECHAZADA';
     }
   }
 }

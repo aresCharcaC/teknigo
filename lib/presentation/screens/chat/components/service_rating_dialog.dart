@@ -1,4 +1,5 @@
 // lib/presentation/screens/chat/components/service_rating_dialog.dart
+
 import 'package:flutter/material.dart';
 
 class ServiceRatingDialog extends StatefulWidget {
@@ -35,7 +36,7 @@ class _ServiceRatingDialogState extends State<ServiceRatingDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Estrellas para calificar
+            // Stars for rating
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (index) {
@@ -62,7 +63,7 @@ class _ServiceRatingDialogState extends State<ServiceRatingDialog> {
 
             const SizedBox(height: 16),
 
-            // Campo para comentarios (opcional)
+            // Field for comments (optional)
             TextField(
               controller: _commentController,
               decoration: const InputDecoration(

@@ -1,9 +1,10 @@
+// lib/presentation/screens/technician/chats/technician_chat_detail_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/models/chat_model.dart';
 import '../../../view_models/chat_detail_view_model.dart';
-import '../../../view_models/auth_view_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../view_models/service_status_view_model.dart';
 import '../../../screens/chat/components/chat_app_bar.dart';
 import '../../../screens/chat/components/chat_input.dart';
@@ -32,28 +33,28 @@ class _TechnicianChatDetailScreenState
   void initState() {
     super.initState();
 
-    // Iniciar la escucha de mensajes
+    // Start listening for messages
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Importante: Obtener el ViewModel después de que se construye el árbol de widgets
+      // Important: Get ViewModel after widget tree is built
       final chatViewModel = Provider.of<ChatDetailViewModel>(
         context,
         listen: false,
       );
 
-      // NUEVO: Obtener el ServiceStatusViewModel
+      // Get ServiceStatusViewModel
       final serviceViewModel = Provider.of<ServiceStatusViewModel>(
         context,
         listen: false,
       );
 
-      // Iniciar escucha de mensajes
+      // Start message listening
       chatViewModel.startListeningToMessages(widget.chatId);
-      print('Escuchando mensajes para chat: ${widget.chatId}');
+      print('Listening to messages for chat: ${widget.chatId}');
 
-      // NUEVO: Cargar información del servicio para este chat
+      // Load service info for this chat
       serviceViewModel.loadServiceByChatId(widget.chatId);
 
-      // Obtener el ID del cliente
+      // Get client ID
       _getClientId();
     });
   }
@@ -64,7 +65,7 @@ class _TechnicianChatDetailScreenState
     super.dispose();
   }
 
-  // Obtener el ID del cliente en el chat
+  // Get client ID from chat
   Future<void> _getClientId() async {
     try {
       final chatDoc =
@@ -84,7 +85,7 @@ class _TechnicianChatDetailScreenState
         }
       }
     } catch (e) {
-      print('Error al obtener id del cliente: $e');
+      print('Error getting client ID: $e');
     }
   }
 
@@ -97,14 +98,14 @@ class _TechnicianChatDetailScreenState
       ),
       body: Column(
         children: [
-          // Tarjeta de estado del servicio con botones de acción
+          // Service status card with action buttons
           ServiceStatusCard(chatId: widget.chatId),
 
-          // Lista de mensajes
+          // Message list
           Expanded(
             child: Consumer<ChatDetailViewModel>(
               builder: (context, viewModel, child) {
-                // Imprimir estado para debug
+                // Print state for debugging
                 print(
                   'Chat view state: ${viewModel.state}, messages: ${viewModel.messages.length}',
                 );
@@ -125,7 +126,7 @@ class _TechnicianChatDetailScreenState
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Error al cargar mensajes',
+                          'Error loading messages',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -144,7 +145,7 @@ class _TechnicianChatDetailScreenState
                         ElevatedButton.icon(
                           onPressed: () => viewModel.reloadMessages(),
                           icon: const Icon(Icons.refresh),
-                          label: const Text('Reintentar'),
+                          label: const Text('Retry'),
                         ),
                       ],
                     ),
@@ -163,7 +164,7 @@ class _TechnicianChatDetailScreenState
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'No hay mensajes aún',
+                          'No messages yet',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -171,7 +172,7 @@ class _TechnicianChatDetailScreenState
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Envía un mensaje para iniciar la conversación',
+                          'Send a message to start the conversation',
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -179,7 +180,7 @@ class _TechnicianChatDetailScreenState
                   );
                 }
 
-                // Desplazar al último mensaje cuando se carguen
+                // Scroll to last message when loaded
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scrollToBottom();
                 });
@@ -214,7 +215,7 @@ class _TechnicianChatDetailScreenState
             ),
           ),
 
-          // Área de entrada de mensajes
+          // Input area
           Consumer<ChatDetailViewModel>(
             builder: (context, viewModel, _) {
               return ChatInput(
@@ -242,7 +243,7 @@ class _TechnicianChatDetailScreenState
     );
   }
 
-  // Desplazar al último mensaje
+  // Scroll to last message
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       try {
@@ -252,7 +253,7 @@ class _TechnicianChatDetailScreenState
           curve: Curves.easeOut,
         );
       } catch (e) {
-        print('Error al desplazar: $e');
+        print('Error scrolling: $e');
       }
     }
   }

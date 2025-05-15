@@ -1,6 +1,9 @@
 // lib/presentation/screens/chat/chat_list_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/chat_model.dart';
 import '../../view_models/chat_list_view_model.dart';
 import 'components/chat_list_item.dart';
@@ -17,12 +20,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   void initState() {
     super.initState();
-    // Iniciar la escucha de chats al cargar la pantalla
+
+    // Ensure we're in client mode and load chats
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ChatListViewModel>(
-        context,
-        listen: false,
-      ).startListeningToChats();
+      final viewModel = Provider.of<ChatListViewModel>(context, listen: false);
+      viewModel.setTechnicianMode(false);
+      viewModel.startListeningToChats();
     });
   }
 
@@ -92,11 +95,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
             itemCount: viewModel.chats.length,
             itemBuilder: (context, index) {
               final chat = viewModel.chats[index];
-              return ChatListItem(
-                chat: chat,
-                onTap: () => _navigateToChatDetail(chat.id),
-                onDelete: () => _confirmDeleteChat(chat.id),
-              );
+              return _buildChatListItem(context, chat, viewModel);
             },
           );
         },
@@ -104,7 +103,136 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  // Navegar a la pantalla de detalle del chat
+  // Build a chat list item with technician info
+  Widget _buildChatListItem(
+    BuildContext context,
+    ChatModel chat,
+    ChatListViewModel viewModel,
+  ) {
+    return FutureBuilder<DocumentSnapshot>(
+      future:
+          FirebaseFirestore.instance
+              .collection(AppConstants.usersCollection)
+              .doc(chat.technicianId)
+              .get(),
+      builder: (context, snapshot) {
+        // Technician name and photo placeholder
+        String technicianName = 'Técnico';
+        String? technicianPhoto;
+
+        // Extract technician info if available
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final techData = snapshot.data!.data() as Map<String, dynamic>?;
+          if (techData != null) {
+            technicianName = techData['name'] ?? 'Técnico';
+            technicianPhoto = techData['profileImage'];
+          }
+        }
+
+        return Dismissible(
+          key: Key(chat.id),
+          background: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          direction: DismissDirection.endToStart,
+          confirmDismiss: (direction) async {
+            return await showDialog(
+              context: context,
+              builder:
+                  (context) => AlertDialog(
+                    title: const Text('Eliminar chat'),
+                    content: const Text(
+                      '¿Estás seguro que deseas eliminar este chat?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('CANCELAR'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text('ELIMINAR'),
+                      ),
+                    ],
+                  ),
+            );
+          },
+          onDismissed: (direction) => _deleteChat(chat.id),
+          child: ListTile(
+            leading: CircleAvatar(
+              radius: 24,
+              backgroundColor: Colors.blue.shade100,
+              backgroundImage:
+                  technicianPhoto != null
+                      ? NetworkImage(technicianPhoto)
+                      : null,
+              child:
+                  technicianPhoto == null
+                      ? Text(
+                        technicianName.isNotEmpty
+                            ? technicianName[0].toUpperCase()
+                            : 'T',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      )
+                      : null,
+            ),
+            title: Text(
+              technicianName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              chat.lastMessage ?? 'Sin mensajes',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (chat.lastMessageTime != null)
+                  Text(
+                    _formatTime(chat.lastMessageTime!),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                const SizedBox(height: 4),
+                if (chat.requestId.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Servicio',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onTap: () => _navigateToChatDetail(chat.id),
+            onLongPress: () => _confirmDeleteChat(chat.id),
+          ),
+        );
+      },
+    );
+  }
+
+  // Navigate to chat detail screen
   void _navigateToChatDetail(String chatId) {
     Navigator.push(
       context,
@@ -112,7 +240,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  // Confirmar eliminación del chat
+  // Confirm chat deletion
   void _confirmDeleteChat(String chatId) {
     showDialog(
       context: context,
@@ -140,7 +268,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  // Eliminar chat
+  // Delete chat
   Future<void> _deleteChat(String chatId) async {
     final viewModel = Provider.of<ChatListViewModel>(context, listen: false);
     final result = await viewModel.deleteChat(chatId);
@@ -152,6 +280,22 @@ class _ChatListScreenState extends State<ChatListScreen> {
           backgroundColor: Colors.green,
         ),
       );
+    }
+  }
+
+  // Format time
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m';
+    } else {
+      return 'ahora';
     }
   }
 }

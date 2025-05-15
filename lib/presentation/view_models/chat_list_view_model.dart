@@ -1,4 +1,5 @@
-// lib/presentation/view_models/chat_list_view_model.dart (ACTUALIZADO)
+// lib/presentation/view_models/chat_list_view_model.dart
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../core/models/chat_model.dart';
@@ -11,108 +12,65 @@ class ChatListViewModel extends BaseViewModel {
   List<ChatModel> _chats = [];
   List<ChatModel> get chats => _chats;
 
-  StreamSubscription? _clientChatsSubscription;
-  StreamSubscription? _technicianChatsSubscription;
+  bool _isTechnicianMode = false; // Track if we're in technician mode
+  bool get isTechnicianMode => _isTechnicianMode;
 
-  // Iniciar escucha de chats
-  void startListeningToChats() {
-    try {
-      setLoading();
+  StreamSubscription? _chatsSubscription;
 
-      // Cancelar subscripciones anteriores si existen
-      _clientChatsSubscription?.cancel();
-      _technicianChatsSubscription?.cancel();
-
-      // Lista local para almacenar temporalmente los chats
-      final List<ChatModel> allChats = [];
-
-      // Flag para saber cuando se han cargado ambos tipos de chats
-      bool clientChatsLoaded = false;
-      bool technicianChatsLoaded = false;
-
-      // Función para verificar si todos los chats se han cargado
-      void checkAllLoaded() {
-        if (clientChatsLoaded && technicianChatsLoaded) {
-          // Ordenar por última actividad
-          allChats.sort(
-            (a, b) => (b.lastMessageTime ?? DateTime(2000)).compareTo(
-              a.lastMessageTime ?? DateTime(2000),
-            ),
-          );
-
-          _chats = List.from(allChats);
-          setLoaded();
-        }
-      }
-
-      // Subscribirse a chats como cliente
-      _clientChatsSubscription = _repository.getUserChatsStream().listen(
-        (clientChats) {
-          // Reemplazar los chats de cliente en la lista
-          allChats.removeWhere(
-            (chat) => clientChats.any((c) => c.id == chat.id),
-          );
-          allChats.addAll(clientChats);
-
-          clientChatsLoaded = true;
-          checkAllLoaded();
-        },
-        onError: (e) {
-          print('Error en stream de chats de cliente: $e');
-          clientChatsLoaded = true;
-          checkAllLoaded();
-        },
-      );
-
-      // Subscribirse a chats como técnico
-      _technicianChatsSubscription = _repository
-          .getTechnicianChatsStream()
-          .listen(
-            (technicianChats) {
-              // Reemplazar los chats de técnico en la lista
-              allChats.removeWhere(
-                (chat) => technicianChats.any((c) => c.id == chat.id),
-              );
-              allChats.addAll(technicianChats);
-
-              technicianChatsLoaded = true;
-              checkAllLoaded();
-            },
-            onError: (e) {
-              print('Error en stream de chats de técnico: $e');
-              technicianChatsLoaded = true;
-              checkAllLoaded();
-            },
-          );
-    } catch (e) {
-      print('Error al iniciar escucha de chats: $e');
-      setError('Error al iniciar escucha de chats: $e');
+  // Set the mode (client or technician)
+  void setTechnicianMode(bool isTechnician) {
+    if (_isTechnicianMode != isTechnician) {
+      _isTechnicianMode = isTechnician;
+      // Reload chats when mode changes
+      startListeningToChats();
     }
   }
 
-  // Eliminar un chat
+  // Start listening to chats based on current mode
+  Future<void> startListeningToChats() async {
+    try {
+      setLoading();
+
+      // Cancel existing subscription if any
+      _chatsSubscription?.cancel();
+
+      // Choose the appropriate stream based on mode
+      final Stream<List<ChatModel>> stream =
+          _isTechnicianMode
+              ? _repository.getTechnicianChatsStream()
+              : _repository.getUserChatsStream();
+
+      // Subscribe to the stream
+      _chatsSubscription = stream.listen(
+        (chats) {
+          _chats = chats;
+          setLoaded();
+        },
+        onError: (e) {
+          print('Error in chat stream: $e');
+          setError('Error loading chats: $e');
+        },
+      );
+    } catch (e) {
+      print('Error starting chat listener: $e');
+      setError('Error starting chat listener: $e');
+    }
+  }
+
+  // Delete a chat
   Future<bool> deleteChat(String chatId) async {
     try {
-      // No cambiamos a estado de carga para evitar flickering
       final result = await _repository.deleteChat(chatId);
-
-      if (result) {
-        // La actualización vendrá por el stream, no modificamos manualmente
-        return true;
-      } else {
-        setError('No se pudo eliminar el chat');
-        return false;
-      }
+      return result;
     } catch (e) {
-      setError('Error al eliminar chat: $e');
+      setError('Error deleting chat: $e');
       return false;
     }
   }
 
   @override
   void dispose() {
-    _clientChatsSubscription?.cancel();
-    _technicianChatsSubscription?.cancel();
+    _chatsSubscription?.cancel();
     super.dispose();
   }
 }

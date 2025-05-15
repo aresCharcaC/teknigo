@@ -52,7 +52,6 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ChatListViewModel()),
         ChangeNotifierProvider(create: (_) => ProposalViewModel()),
         ChangeNotifierProvider(create: (_) => ServiceStatusViewModel()),
-        ChangeNotifierProvider(create: (_) => ServiceStatusViewModel()),
 
         // Agregar más providers a medida que desarrolles nuevas funciones
       ],

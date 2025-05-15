@@ -133,6 +133,13 @@ class _MainScreenState extends State<MainScreen> {
         await technicianViewModel.loadTechnicianProfile();
       }
 
+      // Update chat list view model mode
+      final chatListViewModel = Provider.of<ChatListViewModel>(
+        context,
+        listen: false,
+      );
+      chatListViewModel.setTechnicianMode(value);
+
       // Close loading dialog
       Navigator.of(context).pop();
 

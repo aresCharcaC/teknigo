@@ -1,4 +1,5 @@
-// lib/presentation/screens/chat/chat_detail_screen.dart (modificado)
+// lib/presentation/screens/chat/chat_detail_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,11 +7,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/message_model.dart';
 import '../../view_models/chat_detail_view_model.dart';
-import '../../view_models/service_status_view_model.dart'; // NUEVO
+import '../../view_models/service_status_view_model.dart';
 import 'components/chat_app_bar.dart';
 import 'components/chat_input.dart';
 import 'components/message_bubble.dart';
-import 'components/service_status_card.dart'; // NUEVO
+import 'components/service_status_card.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String chatId;
@@ -24,35 +25,35 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _scrollController = ScrollController();
   final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-  String _otherUserId = '';
+  String _technicianId = '';
 
   @override
   void initState() {
     super.initState();
 
-    // Iniciar la escucha de mensajes
+    // Start listening for messages
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Importante: Obtener el ViewModel después de que se construye el árbol de widgets
+      // Important: Get ViewModels after widget tree is built
       final chatViewModel = Provider.of<ChatDetailViewModel>(
         context,
         listen: false,
       );
 
-      // NUEVO: Obtener el ServiceStatusViewModel
+      // Get ServiceStatusViewModel
       final serviceViewModel = Provider.of<ServiceStatusViewModel>(
         context,
         listen: false,
       );
 
-      // Iniciar escucha de mensajes
+      // Start message listening
       chatViewModel.startListeningToMessages(widget.chatId);
-      print('Escuchando mensajes para chat: ${widget.chatId}');
+      print('Listening to messages for chat: ${widget.chatId}');
 
-      // NUEVO: Cargar información del servicio para este chat
+      // Load service info for this chat
       serviceViewModel.loadServiceByChatId(widget.chatId);
 
-      // Obtener el ID del otro usuario
-      _getOtherUserId();
+      // Get technician ID
+      _getTechnicianId();
     });
   }
 
@@ -62,8 +63,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     super.dispose();
   }
 
-  // Obtener el ID del otro usuario en el chat
-  Future<void> _getOtherUserId() async {
+  // Get technician ID from chat
+  Future<void> _getTechnicianId() async {
     try {
       final chatDoc =
           await FirebaseFirestore.instance
@@ -73,18 +74,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
       if (chatDoc.exists) {
         final chatData = chatDoc.data() as Map<String, dynamic>;
-        final clientId = chatData['clientId'] as String?;
         final technicianId = chatData['technicianId'] as String?;
 
-        if (clientId != null && technicianId != null) {
+        if (technicianId != null) {
           setState(() {
-            _otherUserId = currentUserId == clientId ? technicianId : clientId;
+            _technicianId = technicianId;
           });
-          print('Otro usuario en el chat: $_otherUserId');
         }
       }
     } catch (e) {
-      print('Error al obtener el otro usuario: $e');
+      print('Error getting technician ID: $e');
     }
   }
 
@@ -93,23 +92,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: ChatAppBar(userId: _otherUserId),
+        child: ChatAppBar(userId: _technicianId),
       ),
       body: Column(
         children: [
-          // NUEVO: Tarjeta de estado del servicio
+          // Service status card with action buttons
           ServiceStatusCard(chatId: widget.chatId),
 
-          // Lista de mensajes
+          // Message list
           Expanded(
             child: Consumer<ChatDetailViewModel>(
               builder: (context, viewModel, child) {
-                // Imprimir estado para debug
+                // Print state for debugging
                 print(
                   'Chat view state: ${viewModel.state}, messages: ${viewModel.messages.length}',
                 );
 
-                // Resto del código igual...
                 if (viewModel.isLoading && viewModel.messages.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -182,7 +180,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   );
                 }
 
-                // Desplazar al último mensaje cuando se carguen
+                // Scroll to last message when loaded
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scrollToBottom();
                 });
@@ -198,7 +196,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     final message = viewModel.messages[index];
                     final isMe = message.senderId == currentUserId;
 
-                    // Si es un mensaje consecutivo del mismo usuario, no mostrar avatar
+                    // If it's a consecutive message from the same user, don't show avatar
                     bool showAvatar = true;
                     if (index > 0) {
                       final prevMessage = viewModel.messages[index - 1];
@@ -218,7 +216,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
           ),
 
-          // Si hay una operación en curso (ej: enviando imagen)
+          // If there's an operation in progress (e.g., sending image)
           Consumer<ChatDetailViewModel>(
             builder: (context, viewModel, _) {
               if (viewModel.isLoading) {
@@ -228,31 +226,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             },
           ),
 
-          // Área de entrada de mensajes
+          // Message input area
           Consumer<ChatDetailViewModel>(
             builder: (context, viewModel, _) {
               return ChatInput(
                 onSendMessage: (text) {
-                  print('Enviando mensaje: $text');
+                  print('Sending message: $text');
                   viewModel.sendTextMessage(text);
                   _scrollToBottom();
                 },
                 onSendImage: () async {
-                  print('Intentando enviar imagen...');
+                  print('Trying to send image...');
                   final success = await viewModel.sendImageFromGallery();
-                  print('Resultado envío imagen: $success');
+                  print('Image send result: $success');
                   if (success) _scrollToBottom();
                 },
                 onTakePhoto: () async {
-                  print('Intentando tomar foto...');
+                  print('Trying to take photo...');
                   final success = await viewModel.sendImageFromCamera();
-                  print('Resultado envío foto: $success');
+                  print('Photo send result: $success');
                   if (success) _scrollToBottom();
                 },
                 onSendLocation: () async {
-                  print('Intentando enviar ubicación...');
+                  print('Trying to send location...');
                   final success = await viewModel.sendCurrentLocation();
-                  print('Resultado envío ubicación: $success');
+                  print('Location send result: $success');
                   if (success) _scrollToBottom();
                 },
               );
@@ -263,7 +261,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  // Desplazar al último mensaje
+  // Scroll to last message
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       try {
@@ -273,7 +271,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           curve: Curves.easeOut,
         );
       } catch (e) {
-        print('Error al desplazar: $e');
+        print('Error scrolling: $e');
       }
     }
   }

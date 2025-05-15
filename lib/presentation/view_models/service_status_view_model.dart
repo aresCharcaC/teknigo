@@ -1,6 +1,7 @@
 // lib/presentation/view_models/service_status_view_model.dart
+
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Asegúrate de importar esto
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/models/service_model.dart';
 import '../../core/enums/service_enums.dart';
 import '../../data/repositories/service_status_repository.dart';
@@ -11,7 +12,7 @@ import '../common/resource.dart';
 class ServiceStatusViewModel extends BaseViewModel {
   final ServiceStatusRepository _repository = ServiceStatusRepository();
   final ChatRepository _chatRepository = ChatRepository();
-  final FirebaseAuth _auth = FirebaseAuth.instance; // Añade esto aquí
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   ServiceModel? _currentService;
   ServiceModel? get currentService => _currentService;
@@ -22,39 +23,38 @@ class ServiceStatusViewModel extends BaseViewModel {
   bool _isTechnician = false;
   bool get isTechnician => _isTechnician;
 
-  // Cargar servicio relacionado a un chat
+  // Load service related to a chat
   Future<void> loadServiceByChatId(String chatId) async {
     return executeAsync<void>(() async {
-      // Imprimir información de depuración
-      print('Cargando servicio para chat: $chatId');
+      print('Loading service for chat: $chatId');
 
       final service = await _repository.getServiceByChatId(chatId);
 
       if (service != null) {
-        print('Servicio encontrado: ${service.id}, estado: ${service.status}');
+        print('Service found: ${service.id}, status: ${service.status}');
         _currentService = service;
 
-        // Determinar roles
+        // Determine roles
         final currentUserId = _auth.currentUser?.uid;
         _isClient = currentUserId == service.clientId;
         _isTechnician = currentUserId == service.technicianId;
 
         print('Roles: isClient=$_isClient, isTechnician=$_isTechnician');
       } else {
-        print('No se encontró servicio para este chat');
+        print('No service found for this chat');
       }
     });
   }
 
-  // Aceptar un servicio (cliente)
+  // Accept a service (client)
   Future<Resource<bool>> acceptService(double agreedPrice) async {
     try {
       if (_currentService == null) {
-        return Resource.error('No hay servicio activo');
+        return Resource.error('No active service');
       }
 
       if (!_isClient) {
-        return Resource.error('Solo el cliente puede aceptar un servicio');
+        return Resource.error('Only the client can accept a service');
       }
 
       setLoading();
@@ -65,16 +65,14 @@ class ServiceStatusViewModel extends BaseViewModel {
       );
 
       if (result) {
-        // Enviar mensaje al chat
+        // Send message to chat
         await _chatRepository.sendTextMessage(
-          chatId:
-              _currentService!
-                  .id, // Corregido: usamos el ID del servicio para el chat
+          chatId: _currentService!.chatId,
           content:
-              "✅ Servicio aceptado con precio: \$${agreedPrice.toStringAsFixed(2)}",
+              "✅ Service accepted with price: \$${agreedPrice.toStringAsFixed(2)}",
         );
 
-        // Actualizar servicio local
+        // Update local service
         _currentService = _currentService!.copyWith(
           status: ServiceStatus.accepted,
           acceptedAt: DateTime.now(),
@@ -85,22 +83,21 @@ class ServiceStatusViewModel extends BaseViewModel {
       setLoaded();
       return Resource.success(result);
     } catch (e) {
-      final errorMessage = 'Error al aceptar servicio: $e';
+      final errorMessage = 'Error accepting service: $e';
       setError(errorMessage);
       return Resource.error(errorMessage);
     }
   }
 
-  // El resto del código sigue igual...
-  // Iniciar servicio (técnico)
+  // Start service (technician)
   Future<Resource<bool>> startService() async {
     try {
       if (_currentService == null) {
-        return Resource.error('No hay servicio activo');
+        return Resource.error('No active service');
       }
 
       if (!_isTechnician) {
-        return Resource.error('Solo el técnico puede iniciar el servicio');
+        return Resource.error('Only the technician can start the service');
       }
 
       setLoading();
@@ -108,15 +105,13 @@ class ServiceStatusViewModel extends BaseViewModel {
       final result = await _repository.startService(_currentService!.id);
 
       if (result) {
-        // Enviar mensaje al chat
+        // Send message to chat
         await _chatRepository.sendTextMessage(
-          chatId:
-              _currentService!
-                  .id, // Corregido: usamos el ID del servicio para el chat
-          content: "🔧 El técnico ha iniciado el trabajo",
+          chatId: _currentService!.chatId,
+          content: "🔧 The technician has started working",
         );
 
-        // Actualizar servicio local
+        // Update local service
         _currentService = _currentService!.copyWith(
           status: ServiceStatus.inProgress,
           inProgressAt: DateTime.now(),
@@ -126,21 +121,21 @@ class ServiceStatusViewModel extends BaseViewModel {
       setLoaded();
       return Resource.success(result);
     } catch (e) {
-      final errorMessage = 'Error al iniciar servicio: $e';
+      final errorMessage = 'Error starting service: $e';
       setError(errorMessage);
       return Resource.error(errorMessage);
     }
   }
 
-  // Completar servicio (técnico)
+  // Complete service (technician)
   Future<Resource<bool>> completeService() async {
     try {
       if (_currentService == null) {
-        return Resource.error('No hay servicio activo');
+        return Resource.error('No active service');
       }
 
       if (!_isTechnician) {
-        return Resource.error('Solo el técnico puede completar el servicio');
+        return Resource.error('Only the technician can complete the service');
       }
 
       setLoading();
@@ -148,14 +143,14 @@ class ServiceStatusViewModel extends BaseViewModel {
       final result = await _repository.completeService(_currentService!.id);
 
       if (result) {
-        // Enviar mensaje al chat
+        // Send message to chat
         await _chatRepository.sendTextMessage(
-          chatId: _currentService!.id, // Corregido
+          chatId: _currentService!.chatId,
           content:
-              "✅ El trabajo ha sido completado. Por favor confirma y califica el servicio.",
+              "✅ The work has been completed. Please confirm and rate the service.",
         );
 
-        // Actualizar servicio local
+        // Update local service
         _currentService = _currentService!.copyWith(
           status: ServiceStatus.completed,
           completedAt: DateTime.now(),
@@ -165,7 +160,53 @@ class ServiceStatusViewModel extends BaseViewModel {
       setLoaded();
       return Resource.success(result);
     } catch (e) {
-      final errorMessage = 'Error al completar servicio: $e';
+      final errorMessage = 'Error completing service: $e';
+      setError(errorMessage);
+      return Resource.error(errorMessage);
+    }
+  }
+
+  // Rate service (client)
+  Future<Resource<bool>> rateService(double rating, String? comment) async {
+    try {
+      if (_currentService == null) {
+        return Resource.error('No active service');
+      }
+
+      if (!_isClient) {
+        return Resource.error('Only the client can rate the service');
+      }
+
+      setLoading();
+
+      final result = await _repository.rateService(
+        _currentService!.id,
+        rating,
+        comment,
+      );
+
+      if (result) {
+        // Send message to chat
+        await _chatRepository.sendTextMessage(
+          chatId: _currentService!.chatId,
+          content:
+              "⭐ Service rated with $rating stars" +
+              (comment != null ? ": $comment" : ""),
+        );
+
+        // Update local service
+        _currentService = _currentService!.copyWith(
+          status: ServiceStatus.rated,
+          finishedAt: DateTime.now(),
+          clientRating: rating,
+          clientReview: comment,
+        );
+      }
+
+      setLoaded();
+      return Resource.success(result);
+    } catch (e) {
+      final errorMessage = 'Error rating service: $e';
       setError(errorMessage);
       return Resource.error(errorMessage);
     }

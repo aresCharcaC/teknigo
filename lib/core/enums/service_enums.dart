@@ -1,5 +1,4 @@
 // lib/core/enums/service_enums.dart
-
 enum ServiceStatus {
   pending, // Solicitud pendiente
   offered, // Oferta enviada al cliente

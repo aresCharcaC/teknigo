@@ -1,4 +1,4 @@
-// lib/core/models/service_model.dart
+// lib/core/models/service_model.dart (update the model)
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../enums/service_enums.dart';
@@ -26,8 +26,9 @@ class ServiceModel {
   final String? technicianReview;
   final DateTime? completedAt;
   final String? cancellationReason;
+  final String chatId; // New field for chat reference
 
-  // Nuevos campos
+  // New fields
   final DateTime? acceptedAt;
   final DateTime? inProgressAt;
   final DateTime? finishedAt;
@@ -56,14 +57,15 @@ class ServiceModel {
     this.technicianReview,
     this.completedAt,
     this.cancellationReason,
-    // Nuevos campos
+    // New fields
     this.acceptedAt,
     this.inProgressAt,
     this.finishedAt,
     this.agreedPrice,
+    this.chatId = '', // Default empty string
   });
 
-  // Constructor desde un mapa (para convertir desde Firestore)
+  // Constructor from a map (for conversion from Firestore)
   factory ServiceModel.fromMap(Map<String, dynamic> map, String documentId) {
     return ServiceModel(
       id: documentId,
@@ -88,24 +90,29 @@ class ServiceModel {
       technicianReview: map['technicianReview'],
       completedAt: _parseTimestamp(map['completedAt']),
       cancellationReason: map['cancellationReason'],
-      // Nuevos campos
+      // New fields
       acceptedAt: _parseTimestamp(map['acceptedAt']),
       inProgressAt: _parseTimestamp(map['inProgressAt']),
       finishedAt: _parseTimestamp(map['finishedAt']),
       agreedPrice: (map['agreedPrice'] as num?)?.toDouble(),
+      chatId: map['chatId'] ?? '', // Add the chatId from the map
     );
   }
 
-  // Métodos de ayuda para el parsing
+  // Helper methods for parsing
   static DateTime _parseTimestamp(dynamic timestamp) {
-    return (timestamp as Timestamp?)?.toDate() ?? DateTime.now();
+    if (timestamp is Timestamp) {
+      return timestamp.toDate();
+    }
+    return DateTime.now();
   }
 
   static List<String>? _parseStringList(dynamic list) {
-    return list != null ? List<String>.from(list) : null;
+    if (list == null) return null;
+    return (list as List).map((item) => item.toString()).toList();
   }
 
-  // Convertir a un mapa (para guardar en Firestore)
+  // Convert to a map (for saving to Firestore)
   Map<String, dynamic> toMap() {
     return {
       'clientId': clientId,
@@ -131,16 +138,17 @@ class ServiceModel {
       'completedAt':
           completedAt != null ? Timestamp.fromDate(completedAt!) : null,
       'cancellationReason': cancellationReason,
-      // Nuevos campos
+      // New fields
       'acceptedAt': acceptedAt != null ? Timestamp.fromDate(acceptedAt!) : null,
       'inProgressAt':
           inProgressAt != null ? Timestamp.fromDate(inProgressAt!) : null,
       'finishedAt': finishedAt != null ? Timestamp.fromDate(finishedAt!) : null,
       'agreedPrice': agreedPrice,
+      'chatId': chatId, // Include chatId in the map
     };
   }
 
-  // Crear una copia del modelo con algunos campos modificados
+  // Create a copy of the model with some fields modified
   ServiceModel copyWith({
     String? technicianId,
     ServiceStatus? status,
@@ -153,11 +161,12 @@ class ServiceModel {
     String? technicianReview,
     DateTime? completedAt,
     String? cancellationReason,
-    // Nuevos campos
+    // New fields
     DateTime? acceptedAt,
     DateTime? inProgressAt,
     DateTime? finishedAt,
     double? agreedPrice,
+    String? chatId,
   }) {
     return ServiceModel(
       id: this.id,
@@ -182,15 +191,16 @@ class ServiceModel {
       technicianReview: technicianReview ?? this.technicianReview,
       completedAt: completedAt ?? this.completedAt,
       cancellationReason: cancellationReason ?? this.cancellationReason,
-      // Nuevos campos
+      // New fields
       acceptedAt: acceptedAt ?? this.acceptedAt,
       inProgressAt: inProgressAt ?? this.inProgressAt,
       finishedAt: finishedAt ?? this.finishedAt,
       agreedPrice: agreedPrice ?? this.agreedPrice,
+      chatId: chatId ?? this.chatId,
     );
   }
 
-  // Getters para verificar estado
+  // Getters to check status
   bool get isActive => [
     ServiceStatus.pending,
     ServiceStatus.offered,
