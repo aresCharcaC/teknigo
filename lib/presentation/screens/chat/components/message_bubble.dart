@@ -8,7 +8,8 @@ import '../../../../core/models/message_model.dart';
 import 'proposal_message.dart';
 import 'package:provider/provider.dart';
 import 'location_message.dart';
-import './confirmation_message_bubble.dart';
+import 'confirmation_message_bubble.dart';
+import 'service_rating_dialog.dart';
 import '../../../view_models/service_status_view_model.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -47,22 +48,29 @@ class MessageBubble extends StatelessWidget {
 
           // Solo el cliente puede responder
           if (isClient) {
+            final hasResponded = message.metadata?['responded'] == true;
+            final isConfirmed = message.metadata?['isConfirmed'] == true;
+
             messageContent = ConfirmationMessageBubble(
               message: message.content,
-              hasResponded: message.metadata?['responded'] == true,
+              hasResponded: hasResponded,
+              isConfirmed: isConfirmed,
               onConfirm: () {
-                // Llamar a método para confirmar completado
+                // 1. Marcar como confirmado
                 Provider.of<ServiceStatusViewModel>(
                   context,
                   listen: false,
-                ).confirmCompletionAndRate();
+                ).confirmCompletionAndRate(message.id);
+
+                // 2. Mostrar diálogo de calificación
+                _showRatingDialog(context);
               },
               onReject: () {
                 // Llamar a método para rechazar completado
                 Provider.of<ServiceStatusViewModel>(
                   context,
                   listen: false,
-                ).rejectCompletion();
+                ).rejectCompletion(message.id);
               },
             );
           } else {
@@ -108,7 +116,6 @@ class MessageBubble extends StatelessWidget {
                   ),
                 );
               },
-              // lib/presentation/screens/chat/components/message_bubble.dart (continuación)
               errorBuilder: (context, error, stackTrace) {
                 return Container(
                   height: 200,
@@ -223,6 +230,24 @@ class MessageBubble extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  // Mostrar diálogo de calificación
+  void _showRatingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // No se puede cerrar tocando fuera
+      builder:
+          (context) => ServiceRatingDialog(
+            onSubmit: (rating, comment) {
+              // Guardar la calificación
+              Provider.of<ServiceStatusViewModel>(
+                context,
+                listen: false,
+              ).rateService(rating, comment);
+            },
+          ),
     );
   }
 

@@ -71,25 +71,34 @@ class ServiceStatusCard extends StatelessWidget {
           ),
           child: Row(
             children: [
+              // Status icon
               Icon(
                 _getStatusIcon(service.status),
                 color: _getStatusColor(service.status),
-                size: 20,
+                size: 24,
               ),
               const SizedBox(width: 8),
-              Text(
-                _getStatusText(service.status),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: _getStatusColor(service.status),
+
+              // Status text
+              Expanded(
+                child: Text(
+                  _getStatusText(service.status),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    fontSize: 16,
+                  ),
                 ),
               ),
-              const Spacer(),
+
+              // Price if available
               if (service.agreedPrice != null)
                 Text(
-                  'Precio: S/ ${service.agreedPrice!.toStringAsFixed(2)}',
+                  'S/ ${service.agreedPrice!.toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
+
+              // NO edit button for client view
             ],
           ),
         );
@@ -158,8 +167,6 @@ class ServiceStatusCard extends StatelessWidget {
         return 'TRABAJO EN PROGRESO';
       case ServiceStatus.completed:
         return 'TRABAJO COMPLETADO';
-      case ServiceStatus.rated:
-        return 'SERVICIO FINALIZADO';
       case ServiceStatus.cancelled:
         return 'SERVICIO CANCELADO';
       case ServiceStatus.rejected:

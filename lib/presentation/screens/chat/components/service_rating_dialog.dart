@@ -84,12 +84,15 @@ class _ServiceRatingDialogState extends State<ServiceRatingDialog> {
           onPressed:
               _rating == 0
                   ? null
-                  : () => widget.onSubmit(
-                    _rating,
-                    _commentController.text.isEmpty
-                        ? null
-                        : _commentController.text,
-                  ),
+                  : () {
+                    widget.onSubmit(
+                      _rating,
+                      _commentController.text.isEmpty
+                          ? null
+                          : _commentController.text,
+                    );
+                    Navigator.of(context).pop();
+                  },
           child: const Text('ENVIAR'),
         ),
       ],

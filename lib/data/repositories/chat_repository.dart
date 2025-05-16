@@ -168,13 +168,13 @@ class ChatRepository {
   }
 
   // Enviar mensaje de confirmación de completado
-  Future<bool> sendCompletionConfirmationMessage({
+  Future<String?> sendCompletionConfirmationMessage({
     required String chatId,
     required String clientId,
   }) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return false;
+      if (user == null) return null;
 
       // Crear referencia para el nuevo mensaje
       final messageRef = _firestore.collection('messages').doc();
@@ -191,6 +191,8 @@ class ChatRepository {
           'confirmationType': 'completion',
           'clientId': clientId,
           'responded': false,
+          'isConfirmed':
+              false, // Añadimos este campo para saber si fue confirmado o rechazado
         },
         timestamp: DateTime.now(),
       );
@@ -204,18 +206,23 @@ class ChatRepository {
         'lastMessageTime': Timestamp.fromDate(DateTime.now()),
       });
 
-      return true;
+      return messageRef.id;
     } catch (e) {
       print('Error al enviar mensaje de confirmación: $e');
-      return false;
+      return null;
     }
   }
 
   // Método para actualizar un mensaje de confirmación como respondido
-  Future<bool> updateConfirmationMessageAsResponded(String messageId) async {
+  Future<bool> updateConfirmationMessageAsResponded(
+    String messageId,
+    bool isConfirmed,
+  ) async {
     try {
       await _firestore.collection('messages').doc(messageId).update({
         'metadata.responded': true,
+        'metadata.isConfirmed':
+            isConfirmed, // Actualizar si fue confirmado o rechazado
       });
       return true;
     } catch (e) {

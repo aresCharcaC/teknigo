@@ -115,8 +115,6 @@ class ServiceStatusViewModel extends BaseViewModel {
         return 'TRABAJO EN PROGRESO';
       case ServiceStatus.completed:
         return 'TRABAJO COMPLETADO';
-      case ServiceStatus.rated:
-        return 'SERVICIO FINALIZADO';
       case ServiceStatus.cancelled:
         return 'SERVICIO CANCELADO';
       case ServiceStatus.rejected:
@@ -263,7 +261,9 @@ class ServiceStatusViewModel extends BaseViewModel {
   }
 
   // Confirmar completado y calificar (cliente)
-  Future<Resource<bool>> confirmCompletionAndRate() async {
+  Future<Resource<bool>> confirmCompletionAndRate(
+    String confirmationMessageId,
+  ) async {
     try {
       if (_currentService == null) {
         return Resource.error('No hay servicio activo');
@@ -275,41 +275,38 @@ class ServiceStatusViewModel extends BaseViewModel {
 
       setLoading();
 
-      // Por simplificar, asignamos una calificación predeterminada 5.0
-      const double defaultRating = 5.0;
-
-      final result = await _repository.rateService(
-        _currentService!.id,
-        defaultRating,
-        "Trabajo satisfactorio",
-      );
-
-      if (result) {
-        // Actualizar mensaje de confirmación como respondido
-        if (_currentConfirmationMessageId != null) {
-          await _chatRepository.updateConfirmationMessageAsResponded(
-            _currentConfirmationMessageId!,
-          );
-        }
-
-        // Enviar mensaje normal de confirmación
-        await _chatRepository.sendTextMessage(
-          chatId: _currentService!.chatId,
-          content:
-              "✅ He confirmado el trabajo como completado. ¡Gracias por tu servicio! (Calificación: ⭐⭐⭐⭐⭐)",
-        );
-
-        // Update local service
-        _currentService = _currentService!.copyWith(
-          status: ServiceStatus.rated,
-          finishedAt: DateTime.now(),
-          clientRating: defaultRating,
-          clientReview: "Trabajo satisfactorio",
+      // Marcar el mensaje de confirmación como respondido y confirmado
+      if (confirmationMessageId.isNotEmpty) {
+        await _chatRepository.updateConfirmationMessageAsResponded(
+          confirmationMessageId,
+          true, // isConfirmed = true
         );
       }
 
+      // Actualizar servicio a estado COMPLETADO
+      await _repository.updateServiceStatus(
+        _currentService!.id,
+        ServiceStatus.completed,
+      );
+
+      // Guardar el ID del mensaje de confirmación para usar más tarde
+      _currentConfirmationMessageId = confirmationMessageId;
+
+      // Enviar mensaje normal de confirmación
+      await _chatRepository.sendTextMessage(
+        chatId: _currentService!.chatId,
+        content:
+            "✅ He confirmado que el trabajo está completado. Ahora por favor califica el servicio.",
+      );
+
+      // Update local service
+      _currentService = _currentService!.copyWith(
+        status: ServiceStatus.completed,
+        finishedAt: DateTime.now(),
+      );
+
       setLoaded();
-      return Resource.success(result);
+      return Resource.success(true);
     } catch (e) {
       final errorMessage = 'Error al confirmar el servicio: $e';
       setError(errorMessage);
@@ -318,7 +315,7 @@ class ServiceStatusViewModel extends BaseViewModel {
   }
 
   // Rechazar completado (cliente)
-  Future<Resource<bool>> rejectCompletion() async {
+  Future<Resource<bool>> rejectCompletion(String confirmationMessageId) async {
     try {
       if (_currentService == null) {
         return Resource.error('No hay servicio activo');
@@ -334,10 +331,11 @@ class ServiceStatusViewModel extends BaseViewModel {
       final result = await _repository.revertToInProgress(_currentService!.id);
 
       if (result) {
-        // Actualizar mensaje de confirmación
-        if (_currentConfirmationMessageId != null) {
+        // Actualizar mensaje de confirmación como respondido pero rechazado
+        if (confirmationMessageId.isNotEmpty) {
           await _chatRepository.updateConfirmationMessageAsResponded(
-            _currentConfirmationMessageId!,
+            confirmationMessageId,
+            false, // isConfirmed = false
           );
         }
 
@@ -396,7 +394,7 @@ class ServiceStatusViewModel extends BaseViewModel {
               (comment != null ? ": $comment" : ""),
         );
 
-        // Update local service
+        // Update local service - CAMBIAR EL ESTADO A RATED
         _currentService = _currentService!.copyWith(
           status: ServiceStatus.rated,
           finishedAt: DateTime.now(),

@@ -6,6 +6,8 @@ class ConfirmationMessageBubble extends StatelessWidget {
   final VoidCallback onConfirm;
   final VoidCallback onReject;
   final bool hasResponded;
+  final bool
+  isConfirmed; // Nueva propiedad para saber si fue confirmado o rechazado
 
   const ConfirmationMessageBubble({
     Key? key,
@@ -13,6 +15,7 @@ class ConfirmationMessageBubble extends StatelessWidget {
     required this.onConfirm,
     required this.onReject,
     this.hasResponded = false,
+    this.isConfirmed = false, // Por defecto false
   }) : super(key: key);
 
   @override
@@ -51,25 +54,25 @@ class ConfirmationMessageBubble extends StatelessWidget {
                 // Botón rechazar
                 OutlinedButton(
                   onPressed: onReject,
-                  child: Text('NO'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: BorderSide(color: Colors.red),
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     minimumSize: Size(60, 36),
                   ),
+                  child: Text('NO'),
                 ),
                 SizedBox(width: 8),
                 // Botón confirmar
                 ElevatedButton(
                   onPressed: onConfirm,
-                  child: Text('SÍ'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     minimumSize: Size(60, 36),
                   ),
+                  child: Text('SÍ'),
                 ),
               ],
             ),
@@ -80,9 +83,12 @@ class ConfirmationMessageBubble extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 8.0),
               child: Text(
-                "✅ Trabajo confirmado como completado",
+                isConfirmed
+                    ? "✅ Trabajo confirmado como completado"
+                    : "❌ Trabajo marcado como incompleto",
                 style: TextStyle(
-                  color: Colors.green.shade700,
+                  color:
+                      isConfirmed ? Colors.green.shade700 : Colors.red.shade700,
                   fontStyle: FontStyle.italic,
                 ),
               ),
