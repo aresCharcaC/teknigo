@@ -7,10 +7,12 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/models/message_model.dart';
 import '../../view_models/chat_detail_view_model.dart';
 import '../../view_models/service_status_view_model.dart';
+import '../../view_models/confirmation_view_model.dart'; // Nuevo
 import 'components/chat_app_bar.dart';
 import 'components/chat_input.dart';
 import 'components/message_bubble.dart';
 import 'components/service_status_card.dart';
+import '../../widgets/confirmation_dialog.dart'; // Nuevo
 
 class ChatDetailScreen extends StatefulWidget {
   final String chatId;
@@ -25,6 +27,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _scrollController = ScrollController();
   final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   String _technicianId = '';
+  bool _checkedConfirmation = false;
 
   @override
   void initState() {
@@ -44,6 +47,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         listen: false,
       );
 
+      // Get ConfirmationViewModel (Nuevo)
+      final confirmationViewModel = Provider.of<ConfirmationViewModel>(
+        context,
+        listen: false,
+      );
+
       // Start message listening
       chatViewModel.startListeningToMessages(widget.chatId);
 
@@ -52,7 +61,89 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
       // Get technician ID
       _getTechnicianId();
+
+      // Check for pending confirmations (Nuevo)
+      _checkPendingConfirmations();
     });
+  }
+
+  // Método para verificar si hay confirmaciones pendientes (Nuevo)
+  Future<void> _checkPendingConfirmations() async {
+    if (_checkedConfirmation) return;
+
+    final confirmationViewModel = Provider.of<ConfirmationViewModel>(
+      context,
+      listen: false,
+    );
+
+    final hasPendingConfirmation = await confirmationViewModel
+        .loadPendingConfirmationForChat(widget.chatId);
+
+    if (hasPendingConfirmation && mounted) {
+      _checkedConfirmation = true;
+
+      // Mostrar el diálogo de confirmación
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showConfirmationDialog();
+      });
+    } else {
+      _checkedConfirmation = true;
+    }
+  }
+
+  // Método para mostrar el diálogo de confirmación (Nuevo)
+  void _showConfirmationDialog() {
+    final confirmationViewModel = Provider.of<ConfirmationViewModel>(
+      context,
+      listen: false,
+    );
+
+    if (confirmationViewModel.pendingConfirmation == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // No se puede cerrar tocando fuera
+      builder:
+          (context) => ConfirmationDialog(
+            confirmation: confirmationViewModel.pendingConfirmation!,
+            onConfirm: (isAccepted) async {
+              // Procesar la confirmación
+              final result = await confirmationViewModel.resolveConfirmation(
+                isAccepted,
+              );
+
+              if (result.isSuccess && mounted) {
+                // Cerrar el diálogo
+                Navigator.of(context).pop();
+
+                // Mostrar mensaje de éxito
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isAccepted
+                          ? 'Has confirmado que el trabajo está completado'
+                          : 'Has indicado que el trabajo aún no está completado',
+                    ),
+                    backgroundColor: isAccepted ? Colors.green : Colors.orange,
+                  ),
+                );
+
+                // Si se aceptó y es necesario, mostrar diálogo de calificación
+                if (isAccepted) {
+                  // Opcional: Mostrar diálogo para calificar al técnico
+                }
+              } else if (result.isError && mounted) {
+                // Mostrar error
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: ${result.error}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+          ),
+    );
   }
 
   @override

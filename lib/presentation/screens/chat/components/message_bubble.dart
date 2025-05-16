@@ -40,46 +40,143 @@ class MessageBubble extends StatelessWidget {
 
       case MessageType.confirmation:
         // Verificar si el mensaje es de confirmación de completado
+        print(
+          "MessageBubble: Procesando mensaje de tipo confirmation: ${message.id}",
+        );
+        print("MessageBubble: Metadatos: ${message.metadata}");
+
         if (message.metadata?['confirmationType'] == 'completion') {
           // Verificar si el usuario actual es el cliente
-          final isClient =
-              FirebaseAuth.instance.currentUser?.uid ==
-              message.metadata?['clientId'];
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+          final clientId = message.metadata?['clientId'] as String?;
+          final isClient = currentUserId == clientId;
 
-          // Solo el cliente puede responder
+          print(
+            "MessageBubble: currentUserId=$currentUserId, clientId=$clientId, isClient=$isClient",
+          );
+
+          // Solo el cliente puede responder a la confirmación
           if (isClient) {
-            final hasResponded = message.metadata?['responded'] == true;
-            final isConfirmed = message.metadata?['isConfirmed'] == true;
+            final bool hasResponded = message.metadata?['responded'] == true;
+            final bool isConfirmed = message.metadata?['isConfirmed'] == true;
 
+            print(
+              "MessageBubble: hasResponded=$hasResponded, isConfirmed=$isConfirmed",
+            );
+
+            // Usar el componente ConfirmationMessageBubble para mostrar los botones SI/NO
             messageContent = ConfirmationMessageBubble(
               message: message.content,
               hasResponded: hasResponded,
               isConfirmed: isConfirmed,
               onConfirm: () {
-                // 1. Marcar como confirmado
-                Provider.of<ServiceStatusViewModel>(
+                print(
+                  "MessageBubble: Botón SI presionado para mensaje ${message.id}",
+                );
+
+                // Obtener el viewModel de manera segura
+                final viewModel = Provider.of<ServiceStatusViewModel>(
                   context,
                   listen: false,
-                ).confirmCompletionAndRate(message.id);
+                );
 
-                // 2. Mostrar diálogo de calificación
-                _showRatingDialog(context);
+                // Llamar al método para confirmar el servicio como completado
+                viewModel.confirmCompletionAndRate(message.id).then((result) {
+                  if (result.isSuccess) {
+                    // Si la confirmación fue exitosa, mostrar el diálogo para calificar
+                    _showRatingDialog(context);
+                  } else if (context.mounted) {
+                    // Mostrar error si falla
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result.error ?? 'Error al confirmar'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                });
               },
               onReject: () {
-                // Llamar a método para rechazar completado
-                Provider.of<ServiceStatusViewModel>(
+                print(
+                  "MessageBubble: Botón NO presionado para mensaje ${message.id}",
+                );
+
+                // Obtener el viewModel de manera segura
+                final viewModel = Provider.of<ServiceStatusViewModel>(
                   context,
                   listen: false,
-                ).rejectCompletion(message.id);
+                );
+
+                // Llamar al método para rechazar el servicio como completado
+                viewModel.rejectCompletion(message.id).then((result) {
+                  if (!result.isSuccess && context.mounted) {
+                    // Mostrar error solo si falla
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result.error ?? 'Error al rechazar'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                });
               },
             );
           } else {
-            // Para el técnico, solo mostrar el mensaje
-            messageContent = Text(
-              message.content,
-              style: TextStyle(
-                fontSize: 16,
-                color: isMe ? Colors.white : Colors.black87,
+            // Para el técnico, mostrar un mensaje especial de espera
+            final bool hasResponded = message.metadata?['responded'] == true;
+            final bool isConfirmed = message.metadata?['isConfirmed'] == true;
+
+            // Determinar el estado del mensaje para el técnico
+            String statusText;
+            IconData statusIcon;
+            Color statusColor;
+
+            if (hasResponded) {
+              if (isConfirmed) {
+                statusText =
+                    "El cliente ha confirmado que el trabajo está completo";
+                statusIcon = Icons.check_circle;
+                statusColor = Colors.green;
+              } else {
+                statusText =
+                    "El cliente ha indicado que el trabajo aún no está completo";
+                statusIcon = Icons.cancel;
+                statusColor = Colors.red;
+              }
+            } else {
+              statusText = "Esperando confirmación del cliente";
+              statusIcon = Icons.hourglass_empty;
+              statusColor = Colors.orange;
+            }
+
+            messageContent = Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: statusColor.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(statusIcon, size: 16, color: statusColor),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          statusText,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Text(message.content),
+                ],
               ),
             );
           }

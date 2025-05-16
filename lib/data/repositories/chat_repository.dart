@@ -173,42 +173,68 @@ class ChatRepository {
     required String clientId,
   }) async {
     try {
+      print("ChatRepository: Iniciando envío de mensaje de confirmación");
+
       final user = _auth.currentUser;
-      if (user == null) return null;
+      if (user == null) {
+        print("ChatRepository: Error - No hay usuario autenticado");
+        return null;
+      }
+
+      print(
+        "ChatRepository: Enviando mensaje para chat: $chatId, cliente: $clientId",
+      );
+
+      // Verificar que el chat existe
+      final chatDoc = await _firestore.collection('chats').doc(chatId).get();
+      if (!chatDoc.exists) {
+        print("ChatRepository: Error - Chat no encontrado: $chatId");
+        return null;
+      }
 
       // Crear referencia para el nuevo mensaje
       final messageRef = _firestore.collection('messages').doc();
+      print("ChatRepository: ID del mensaje de confirmación: ${messageRef.id}");
+
+      // Crear metadatos específicos para un mensaje de confirmación
+      // Es CRÍTICO incluir todos estos campos para que los botones funcionen
+      final metadata = {
+        'confirmationType': 'completion',
+        'clientId': clientId,
+        'responded': false,
+        'isConfirmed': false,
+        'technicianId': user.uid,
+        'timestamp': Timestamp.fromDate(DateTime.now()),
+      };
 
       // Crear el mensaje
-      final message = MessageModel(
-        id: messageRef.id,
-        chatId: chatId,
-        senderId: user.uid,
-        type: MessageType.confirmation,
-        content:
+      final message = {
+        'chatId': chatId,
+        'senderId': user.uid,
+        'type': 'confirmation', // El tipo es un string en la base de datos
+        'content':
             "El técnico ha marcado el trabajo como completado. ¿Confirmas que el trabajo está terminado?",
-        metadata: {
-          'confirmationType': 'completion',
-          'clientId': clientId,
-          'responded': false,
-          'isConfirmed':
-              false, // Añadimos este campo para saber si fue confirmado o rechazado
-        },
-        timestamp: DateTime.now(),
-      );
+        'metadata': metadata,
+        'timestamp': Timestamp.fromDate(DateTime.now()),
+        'isRead': false,
+      };
 
       // Guardar el mensaje
-      await messageRef.set(message.toFirestore());
+      print("ChatRepository: Guardando mensaje de confirmación en Firestore");
+      await messageRef.set(message);
+      print("ChatRepository: Mensaje guardado correctamente");
 
       // Actualizar el último mensaje del chat
       await _firestore.collection('chats').doc(chatId).update({
         'lastMessage': "✅ Confirmación de trabajo completado",
         'lastMessageTime': Timestamp.fromDate(DateTime.now()),
       });
+      print("ChatRepository: Chat actualizado con el último mensaje");
 
+      print("ChatRepository: Mensaje de confirmación enviado exitosamente");
       return messageRef.id;
     } catch (e) {
-      print('Error al enviar mensaje de confirmación: $e');
+      print('ChatRepository: Error al enviar mensaje de confirmación: $e');
       return null;
     }
   }
@@ -219,11 +245,32 @@ class ChatRepository {
     bool isConfirmed,
   ) async {
     try {
+      print(
+        "Actualizando mensaje de confirmación: $messageId, isConfirmed: $isConfirmed",
+      );
+
+      if (messageId.isEmpty) {
+        print("Error: messageId está vacío");
+        return false;
+      }
+
+      // Obtener el mensaje actual para verificar que existe
+      final messageDoc =
+          await _firestore.collection('messages').doc(messageId).get();
+
+      if (!messageDoc.exists) {
+        print("Error: El mensaje con ID $messageId no existe");
+        return false;
+      }
+
+      // Actualizar el mensaje
       await _firestore.collection('messages').doc(messageId).update({
         'metadata.responded': true,
-        'metadata.isConfirmed':
-            isConfirmed, // Actualizar si fue confirmado o rechazado
+        'metadata.isConfirmed': isConfirmed,
+        'metadata.respondedAt': FieldValue.serverTimestamp(),
       });
+
+      print("Mensaje de confirmación actualizado exitosamente");
       return true;
     } catch (e) {
       print('Error al actualizar mensaje de confirmación: $e');

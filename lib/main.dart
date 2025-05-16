@@ -14,6 +14,7 @@ import 'presentation/view_models/profile_view_model.dart';
 import 'presentation/view_models/category_view_model.dart';
 import 'presentation/view_models/technician_view_model.dart';
 import 'presentation/view_models/home_view_model.dart';
+import 'presentation/view_models/confirmation_view_model.dart';
 import 'presentation/view_models/service_request_view_model.dart';
 import 'presentation/view_models/service_status_view_model.dart';
 import 'presentation/view_models/chat_view_model.dart';
@@ -52,6 +53,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ChatListViewModel()),
         ChangeNotifierProvider(create: (_) => ProposalViewModel()),
         ChangeNotifierProvider(create: (_) => ServiceStatusViewModel()),
+        ChangeNotifierProvider(create: (_) => ConfirmationViewModel()),
 
         // Agregar más providers a medida que desarrolles nuevas funciones
       ],

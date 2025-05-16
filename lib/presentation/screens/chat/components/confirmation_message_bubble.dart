@@ -6,8 +6,7 @@ class ConfirmationMessageBubble extends StatelessWidget {
   final VoidCallback onConfirm;
   final VoidCallback onReject;
   final bool hasResponded;
-  final bool
-  isConfirmed; // Nueva propiedad para saber si fue confirmado o rechazado
+  final bool isConfirmed;
 
   const ConfirmationMessageBubble({
     Key? key,
@@ -15,7 +14,7 @@ class ConfirmationMessageBubble extends StatelessWidget {
     required this.onConfirm,
     required this.onReject,
     this.hasResponded = false,
-    this.isConfirmed = false, // Por defecto false
+    this.isConfirmed = false,
   }) : super(key: key);
 
   @override
@@ -24,9 +23,17 @@ class ConfirmationMessageBubble extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
+        color:
+            hasResponded
+                ? (isConfirmed ? Colors.green.shade50 : Colors.red.shade50)
+                : Colors.amber.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.shade200),
+        border: Border.all(
+          color:
+              hasResponded
+                  ? (isConfirmed ? Colors.green.shade200 : Colors.red.shade200)
+                  : Colors.amber.shade200,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,12 +41,30 @@ class ConfirmationMessageBubble extends StatelessWidget {
           // Icono y mensaje
           Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 20),
+              Icon(
+                hasResponded
+                    ? (isConfirmed ? Icons.check_circle : Icons.cancel)
+                    : Icons.help_outline,
+                color:
+                    hasResponded
+                        ? (isConfirmed ? Colors.green : Colors.red)
+                        : Colors.amber,
+                size: 20,
+              ),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
                   message,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color:
+                        hasResponded
+                            ? (isConfirmed
+                                ? Colors.green.shade800
+                                : Colors.red.shade800)
+                            : Colors.amber.shade800,
+                  ),
                 ),
               ),
             ],

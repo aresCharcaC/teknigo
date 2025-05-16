@@ -1,10 +1,11 @@
 // lib/presentation/screens/technician/components/technician_service_status_card.dart
+// Versión directa sin diálogos intermedios
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/enums/service_enums.dart';
 import '../../../../core/models/service_model.dart';
 import '../../../view_models/service_status_view_model.dart';
-import '../../../common/resource.dart';
 
 class TechnicianServiceStatusCard extends StatelessWidget {
   final String chatId;
@@ -14,151 +15,150 @@ class TechnicianServiceStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print("Building TechnicianServiceStatusCard for chatId: $chatId");
+    // Obtener viewModel de manera segura
+    final viewModel = Provider.of<ServiceStatusViewModel>(context);
 
-    return Consumer<ServiceStatusViewModel>(
-      builder: (context, viewModel, child) {
-        print(
-          "ServiceViewModel state: ${viewModel.state}, hasService: ${viewModel.currentService != null}",
-        );
+    // Si está cargando y no hay servicio, mostrar indicador
+    if (viewModel.isLoading && viewModel.currentService == null) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        ),
+        child: const Center(
+          child: SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
 
-        // Si está cargando y no hay servicio, mostrar indicador
-        if (viewModel.isLoading && viewModel.currentService == null) {
-          return Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-            ),
-            child: const Center(
-              child: SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+    // Si no hay servicio asociado a este chat
+    if (viewModel.currentService == null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          border: Border(bottom: BorderSide(color: Colors.blue.shade100)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info, color: Colors.blue.shade800, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Chat de servicio técnico',
+                style: TextStyle(color: Colors.blue.shade800),
               ),
             ),
-          );
-        }
+          ],
+        ),
+      );
+    }
 
-        // Si no hay servicio asociado a este chat
-        if (viewModel.currentService == null) {
-          print("No hay servicio asociado al chat");
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              border: Border(bottom: BorderSide(color: Colors.blue.shade100)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info, color: Colors.blue.shade800, size: 20),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Chat de servicio técnico',
-                    style: TextStyle(color: Colors.blue.shade800),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
+    // Si hay servicio, mostrar tarjeta con estado y botón de edición
+    final service = viewModel.currentService!;
 
-        // Si hay servicio, mostrar tarjeta con estado y botón de edición
-        final service = viewModel.currentService!;
-        print("Servicio encontrado con estado: ${service.status}");
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _getStatusColor(service.status).withOpacity(0.1),
+        border: Border(
+          bottom: BorderSide(color: _getStatusColor(service.status), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Icono de estado
+          Icon(
+            _getStatusIcon(service.status),
+            color: _getStatusColor(service.status),
+            size: 24,
+          ),
+          const SizedBox(width: 8),
 
-        // Verificar si es el técnico - siempre habilitamos el botón para el técnico
-        bool canEdit = true; // Siempre mostrar botón de edición en modo técnico
-
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _getStatusColor(service.status).withOpacity(0.1),
-            border: Border(
-              bottom: BorderSide(
-                color: _getStatusColor(service.status),
-                width: 1,
+          // Texto del estado
+          Expanded(
+            child: Text(
+              _getStatusText(service.status),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+                fontSize: 16,
               ),
             ),
           ),
-          child: Row(
-            children: [
-              // Icono de estado
-              Icon(
-                _getStatusIcon(service.status),
-                color: _getStatusColor(service.status),
-                size: 24,
-              ),
-              const SizedBox(width: 8),
 
-              // Texto del estado
-              Expanded(
-                child: Text(
-                  _getStatusText(service.status),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
+          // Precio si está disponible
+          if (service.agreedPrice != null)
+            Text(
+              'S/ ${service.agreedPrice!.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
 
-              // Precio si está disponible
-              if (service.agreedPrice != null)
-                Text(
-                  'S/ ${service.agreedPrice!.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-
-              // Botón de edición siempre visible para el técnico
-              IconButton(
-                icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
-                tooltip: 'Cambiar estado',
-                onPressed: () {
-                  print("Botón de edición presionado");
-                  _showStatusChangeDialog(context, viewModel, service.status);
-                },
-              ),
-            ],
+          // Botón de edición siempre visible para el técnico
+          IconButton(
+            icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
+            tooltip: 'Cambiar estado',
+            onPressed: () {
+              // Mostrar diálogo con todos los estados disponibles sin confirmaciones
+              _showStatusChangeDialog(context, viewModel);
+            },
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  // Mostrar diálogo para cambiar estado
+  // Obtener estados disponibles (todos menos el actual y RATED)
+  List<ServiceStatus> _getAvailableStatuses(ServiceStatus currentStatus) {
+    // Lista base de todos los estados posibles
+    List<ServiceStatus> allStatuses = [
+      ServiceStatus.pending,
+      ServiceStatus.offered,
+      ServiceStatus.accepted,
+      ServiceStatus.inProgress,
+      ServiceStatus.completed,
+      ServiceStatus.cancelled,
+      ServiceStatus.rejected,
+    ];
+
+    // Filtrar el estado actual (no permitir cambiar al mismo estado)
+    allStatuses.removeWhere((status) => status == currentStatus);
+
+    // No permitir pasar directamente a "rated" (solo el cliente puede hacerlo)
+    allStatuses.removeWhere((status) => status == ServiceStatus.rated);
+
+    return allStatuses;
+  }
+
+  // Mostrar diálogo para cambiar estado - SIN CONFIRMACIONES ADICIONALES
   void _showStatusChangeDialog(
     BuildContext context,
     ServiceStatusViewModel viewModel,
-    ServiceStatus currentStatus,
   ) {
-    print("Showing status change dialog for status: $currentStatus");
+    // Capturar una referencia al viewModel
+    final serviceViewModel = viewModel;
+    final currentStatus =
+        viewModel.currentService?.status ?? ServiceStatus.pending;
 
     // Obtener todos los estados disponibles
     List<ServiceStatus> availableStatuses = _getAvailableStatuses(
       currentStatus,
     );
 
-    if (availableStatuses.isEmpty) {
-      // Si no hay estados disponibles, mostrar un mensaje
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se puede cambiar el estado actual'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    // Mostrar un diálogo con las opciones de estado disponibles
+    // Mostrar diálogo simple con lista de estados
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: Text('Cambiar estado del servicio'),
           content: Container(
             width: double.maxFinite,
+            height: 300, // Altura fija para la lista
             child: ListView(
               shrinkWrap: true,
               children:
@@ -169,9 +169,58 @@ class TechnicianServiceStatusCard extends StatelessWidget {
                         color: _getStatusColor(status),
                       ),
                       title: Text(_getStatusText(status)),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _changeServiceStatus(context, viewModel, status);
+                      onTap: () async {
+                        // Cerrar el diálogo primero
+                        Navigator.pop(dialogContext);
+
+                        // CASO ESPECIAL: si el estado seleccionado es COMPLETED
+                        if (status == ServiceStatus.completed) {
+                          // Usar completeService que enviará el mensaje especial al cliente
+                          final result =
+                              await serviceViewModel.completeService();
+
+                          // Mostrar mensaje de éxito o error
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  result.isSuccess
+                                      ? 'Se ha enviado una solicitud de confirmación al cliente'
+                                      : (result.error ??
+                                          'Error al marcar como completado'),
+                                ),
+                                backgroundColor:
+                                    result.isSuccess
+                                        ? Colors.green
+                                        : Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                        // Para todos los demás estados, cambiar directamente
+                        else {
+                          // Cambiar estado directamente sin confirmación
+                          final result = await serviceViewModel
+                              .changeServiceStatus(status);
+
+                          // Mostrar mensaje de éxito o error
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  result.isSuccess
+                                      ? 'Estado cambiado a ${_getStatusText(status)}'
+                                      : (result.error ??
+                                          'Error al cambiar el estado'),
+                                ),
+                                backgroundColor:
+                                    result.isSuccess
+                                        ? Colors.green
+                                        : Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       },
                     );
                   }).toList(),
@@ -179,66 +228,13 @@ class TechnicianServiceStatusCard extends StatelessWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: Text('CANCELAR'),
             ),
           ],
         );
       },
     );
-  }
-
-  // Obtener estados disponibles según el estado actual
-  List<ServiceStatus> _getAvailableStatuses(ServiceStatus currentStatus) {
-    // Siempre permitir todos los estados excepto el actual
-    return [
-      ServiceStatus.pending,
-      ServiceStatus.offered,
-      ServiceStatus.accepted,
-      ServiceStatus.inProgress,
-      ServiceStatus.completed,
-      ServiceStatus.rated,
-    ].where((status) => status != currentStatus).toList();
-  }
-
-  // Método para cambiar estado directamente
-  void _changeServiceStatus(
-    BuildContext context,
-    ServiceStatusViewModel viewModel,
-    ServiceStatus newStatus,
-  ) async {
-    print("Changing service status to: $newStatus");
-
-    try {
-      // Usar el nuevo método genérico para cambiar estado
-      final result = await viewModel.changeServiceStatus(newStatus);
-
-      bool success = result.isSuccess;
-      String message =
-          success
-              ? 'Estado cambiado a ${_getStatusText(newStatus)}'
-              : result.error ?? 'Error al cambiar el estado';
-
-      // Mostrar resultado como SnackBar
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: success ? Colors.green : Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print("Error changing service status: $e");
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   // Obtener color según estado

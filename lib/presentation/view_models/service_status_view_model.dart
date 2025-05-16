@@ -5,6 +5,7 @@ import '../../core/models/service_model.dart';
 import '../../core/enums/service_enums.dart';
 import '../../data/repositories/service_status_repository.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../data/repositories/confirmation_repository.dart';
 import '../common/base_view_model.dart';
 import '../common/resource.dart';
 
@@ -12,6 +13,8 @@ class ServiceStatusViewModel extends BaseViewModel {
   final ServiceStatusRepository _repository = ServiceStatusRepository();
   final ChatRepository _chatRepository = ChatRepository();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ConfirmationRepository _confirmationRepository =
+      ConfirmationRepository();
 
   ServiceModel? _currentService;
   ServiceModel? get currentService => _currentService;
@@ -115,6 +118,8 @@ class ServiceStatusViewModel extends BaseViewModel {
         return 'TRABAJO EN PROGRESO';
       case ServiceStatus.completed:
         return 'TRABAJO COMPLETADO';
+      case ServiceStatus.rated:
+        return 'SERVICIO FINALIZADO';
       case ServiceStatus.cancelled:
         return 'SERVICIO CANCELADO';
       case ServiceStatus.rejected:
@@ -237,12 +242,23 @@ class ServiceStatusViewModel extends BaseViewModel {
       final result = await _repository.completeService(_currentService!.id);
 
       if (result) {
-        // Enviar mensaje de confirmación en lugar de un mensaje normal
-        final confirmSent = await _chatRepository
-            .sendCompletionConfirmationMessage(
+        // Enviar mensaje normal
+        await _chatRepository.sendTextMessage(
+          chatId: _currentService!.chatId,
+          content:
+              "✅ He marcado el trabajo como completado. El cliente debe confirmar.",
+        );
+
+        // Crear confirmación pendiente - Nuevo
+        final confirmationId = await _confirmationRepository
+            .createPendingConfirmation(
+              serviceId: _currentService!.id,
               chatId: _currentService!.chatId,
+              technicianId: _currentService!.technicianId ?? '',
               clientId: _currentService!.clientId,
+              serviceTitle: _currentService!.title,
             );
+        print('Confirmación pendiente creada con ID: $confirmationId');
 
         // Update local service
         _currentService = _currentService!.copyWith(
@@ -266,28 +282,40 @@ class ServiceStatusViewModel extends BaseViewModel {
   ) async {
     try {
       if (_currentService == null) {
+        print("Error: No hay servicio activo al confirmar");
         return Resource.error('No hay servicio activo');
       }
 
       if (!_isClient) {
+        print("Error: Solo el cliente puede confirmar el servicio");
         return Resource.error('Solo el cliente puede confirmar el servicio');
       }
 
       setLoading();
 
+      print(
+        "Iniciando confirmación del servicio - messageId: $confirmationMessageId",
+      );
+
       // Marcar el mensaje de confirmación como respondido y confirmado
       if (confirmationMessageId.isNotEmpty) {
+        print("Actualizando mensaje de confirmación como respondido");
         await _chatRepository.updateConfirmationMessageAsResponded(
           confirmationMessageId,
           true, // isConfirmed = true
         );
+      } else {
+        print("Error: ID de mensaje de confirmación vacío");
       }
 
-      // Actualizar servicio a estado COMPLETADO
-      await _repository.updateServiceStatus(
-        _currentService!.id,
-        ServiceStatus.completed,
-      );
+      // Actualizar servicio a estado COMPLETADO si no lo está ya
+      if (_currentService!.status != ServiceStatus.completed) {
+        print("Actualizando estado del servicio a COMPLETADO");
+        await _repository.updateServiceStatus(
+          _currentService!.id,
+          ServiceStatus.completed,
+        );
+      }
 
       // Guardar el ID del mensaje de confirmación para usar más tarde
       _currentConfirmationMessageId = confirmationMessageId;
@@ -306,9 +334,11 @@ class ServiceStatusViewModel extends BaseViewModel {
       );
 
       setLoaded();
+      print("Servicio confirmado exitosamente");
       return Resource.success(true);
     } catch (e) {
       final errorMessage = 'Error al confirmar el servicio: $e';
+      print("ERROR: $errorMessage");
       setError(errorMessage);
       return Resource.error(errorMessage);
     }
@@ -318,14 +348,19 @@ class ServiceStatusViewModel extends BaseViewModel {
   Future<Resource<bool>> rejectCompletion(String confirmationMessageId) async {
     try {
       if (_currentService == null) {
+        print("Error: No hay servicio activo al rechazar");
         return Resource.error('No hay servicio activo');
       }
 
       if (!_isClient) {
+        print("Error: Solo el cliente puede rechazar la confirmación");
         return Resource.error('Solo el cliente puede rechazar la confirmación');
       }
 
       setLoading();
+      print(
+        "Rechazando finalización del servicio - messageId: $confirmationMessageId",
+      );
 
       // Revertir el estado a "en progreso"
       final result = await _repository.revertToInProgress(_currentService!.id);
@@ -333,10 +368,13 @@ class ServiceStatusViewModel extends BaseViewModel {
       if (result) {
         // Actualizar mensaje de confirmación como respondido pero rechazado
         if (confirmationMessageId.isNotEmpty) {
+          print("Actualizando mensaje de confirmación como rechazado");
           await _chatRepository.updateConfirmationMessageAsResponded(
             confirmationMessageId,
             false, // isConfirmed = false
           );
+        } else {
+          print("Error: ID de mensaje de confirmación vacío");
         }
 
         // Enviar mensaje de rechazo
@@ -353,9 +391,11 @@ class ServiceStatusViewModel extends BaseViewModel {
       }
 
       setLoaded();
+      print("Servicio rechazado exitosamente");
       return Resource.success(result);
     } catch (e) {
       final errorMessage = 'Error al rechazar la confirmación: $e';
+      print("ERROR: $errorMessage");
       setError(errorMessage);
       return Resource.error(errorMessage);
     }
