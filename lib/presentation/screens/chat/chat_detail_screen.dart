@@ -5,14 +5,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/message_model.dart';
+import '../../../core/models/pending_confirmation_model.dart';
+import '../../../core/enums/service_enums.dart';
 import '../../view_models/chat_detail_view_model.dart';
 import '../../view_models/service_status_view_model.dart';
-import '../../view_models/confirmation_view_model.dart'; // Nuevo
 import 'components/chat_app_bar.dart';
 import 'components/chat_input.dart';
 import 'components/message_bubble.dart';
 import 'components/service_status_card.dart';
-import '../../widgets/confirmation_dialog.dart'; // Nuevo
+import 'components/service_rating_dialog.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String chatId;
@@ -27,7 +28,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _scrollController = ScrollController();
   final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   String _technicianId = '';
-  bool _checkedConfirmation = false;
+  bool _checkedService = false;
 
   @override
   void initState() {
@@ -47,103 +48,279 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         listen: false,
       );
 
-      // Get ConfirmationViewModel (Nuevo)
-      final confirmationViewModel = Provider.of<ConfirmationViewModel>(
-        context,
-        listen: false,
-      );
-
       // Start message listening
       chatViewModel.startListeningToMessages(widget.chatId);
 
       // Load service info for this chat
-      serviceViewModel.loadServiceByChatId(widget.chatId);
+      serviceViewModel.loadServiceByChatId(widget.chatId).then((_) {
+        // Después de cargar el servicio, verificar si necesita confirmación
+        _checkServiceNeedsConfirmation();
+      });
 
       // Get technician ID
       _getTechnicianId();
-
-      // Check for pending confirmations (Nuevo)
-      _checkPendingConfirmations();
     });
   }
 
-  // Método para verificar si hay confirmaciones pendientes (Nuevo)
-  Future<void> _checkPendingConfirmations() async {
-    if (_checkedConfirmation) return;
+  // Método para verificar directamente si el servicio necesita confirmación
+  void _checkServiceNeedsConfirmation() async {
+    if (_checkedService) return;
 
-    final confirmationViewModel = Provider.of<ConfirmationViewModel>(
+    final serviceViewModel = Provider.of<ServiceStatusViewModel>(
       context,
       listen: false,
     );
 
-    final hasPendingConfirmation = await confirmationViewModel
-        .loadPendingConfirmationForChat(widget.chatId);
+    print("Verificando si el servicio necesita confirmación...");
+    print("Usuario actual ID: $currentUserId");
 
-    if (hasPendingConfirmation && mounted) {
-      _checkedConfirmation = true;
+    // Verificar si hay un servicio y si está en estado completado
+    if (serviceViewModel.currentService != null &&
+        serviceViewModel.currentService!.status == ServiceStatus.completed) {
+      print("Servicio encontrado: ${serviceViewModel.currentService!.id}");
+      print("Estado del servicio: ${serviceViewModel.currentService!.status}");
+      print("ClientId: ${serviceViewModel.currentService!.clientId}");
+      print("TechnicianId: ${serviceViewModel.currentService!.technicianId}");
 
-      // Mostrar el diálogo de confirmación
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showConfirmationDialog();
-      });
-    } else {
-      _checkedConfirmation = true;
+      // SOLUCIÓN ESPECIAL: Como el clientId está vacío, necesitamos obtenerlo del chat
+      if (serviceViewModel.currentService!.clientId.isEmpty) {
+        print("ClientId está vacío, verificando ID del cliente en el chat...");
+
+        try {
+          // Obtener el documento del chat
+          final chatDoc =
+              await FirebaseFirestore.instance
+                  .collection('chats')
+                  .doc(widget.chatId)
+                  .get();
+
+          if (chatDoc.exists) {
+            final chatData = chatDoc.data() as Map<String, dynamic>?;
+            final chatClientId = chatData?['clientId'] as String?;
+
+            print("ClientId del chat: $chatClientId");
+
+            // Verificar si el usuario actual es el cliente según el chat
+            bool isClient = currentUserId == chatClientId;
+            print("¿El usuario actual es el cliente según el chat? $isClient");
+
+            if (isClient && chatClientId != null && chatClientId.isNotEmpty) {
+              print(
+                "¡Se detectó un servicio completado que necesita confirmación!",
+              );
+              _checkedService = true;
+
+              // Mostrar diálogo directamente
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _showConfirmationDialogDirect(serviceViewModel.currentService!);
+              });
+              return;
+            }
+          }
+        } catch (e) {
+          print("Error al obtener el chat: $e");
+        }
+      } else if (currentUserId == serviceViewModel.currentService!.clientId) {
+        // Si el clientId no está vacío, verificar normalmente
+        print("¡Se detectó un servicio completado que necesita confirmación!");
+        _checkedService = true;
+
+        // Mostrar diálogo directamente
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showConfirmationDialogDirect(serviceViewModel.currentService!);
+        });
+        return;
+      }
     }
+
+    // Si llegamos aquí, no se necesita mostrar el diálogo
+    _checkedService = true;
+    print("No se requiere confirmación o el usuario no es el cliente");
   }
 
-  // Método para mostrar el diálogo de confirmación (Nuevo)
-  void _showConfirmationDialog() {
-    final confirmationViewModel = Provider.of<ConfirmationViewModel>(
-      context,
-      listen: false,
-    );
-
-    if (confirmationViewModel.pendingConfirmation == null) return;
+  // Método para mostrar el diálogo directamente
+  void _showConfirmationDialogDirect(dynamic service) {
+    print("Mostrando diálogo de confirmación directamente");
 
     showDialog(
       context: context,
-      barrierDismissible: false, // No se puede cerrar tocando fuera
+      barrierDismissible: false,
       builder:
-          (context) => ConfirmationDialog(
-            confirmation: confirmationViewModel.pendingConfirmation!,
-            onConfirm: (isAccepted) async {
-              // Procesar la confirmación
-              final result = await confirmationViewModel.resolveConfirmation(
-                isAccepted,
-              );
+          (context) => WillPopScope(
+            onWillPop: () async => false,
+            child: AlertDialog(
+              title: Text('Confirmación de Servicio'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'El técnico ha marcado el siguiente servicio como completado:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 16),
 
-              if (result.isSuccess && mounted) {
-                // Cerrar el diálogo
-                Navigator.of(context).pop();
-
-                // Mostrar mensaje de éxito
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      isAccepted
-                          ? 'Has confirmado que el trabajo está completado'
-                          : 'Has indicado que el trabajo aún no está completado',
+                  // Información del servicio
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
-                    backgroundColor: isAccepted ? Colors.green : Colors.orange,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          service.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '¿Confirmas que el trabajo ha sido completado correctamente?',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ),
-                );
 
-                // Si se aceptó y es necesario, mostrar diálogo de calificación
-                if (isAccepted) {
-                  // Opcional: Mostrar diálogo para calificar al técnico
-                }
-              } else if (result.isError && mounted) {
-                // Mostrar error
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error: ${result.error}'),
-                    backgroundColor: Colors.red,
+                  SizedBox(height: 24),
+                  Text(
+                    'Debes confirmar si el trabajo está terminado para continuar.',
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade700,
+                    ),
                   ),
-                );
-              }
-            },
+                ],
+              ),
+              actions: [
+                // Botón de rechazar
+                OutlinedButton.icon(
+                  onPressed: () => _handleConfirmationResponse(false),
+                  icon: Icon(Icons.close, color: Colors.red),
+                  label: Text('NO, FALTA TRABAJO'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: BorderSide(color: Colors.red),
+                  ),
+                ),
+
+                // Botón de confirmar
+                ElevatedButton.icon(
+                  onPressed: () => _handleConfirmationResponse(true),
+                  icon: Icon(Icons.check),
+                  label: Text('SÍ, ESTÁ COMPLETADO'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
     );
+  }
+
+  // Manejar la respuesta del usuario
+  void _handleConfirmationResponse(bool isAccepted) async {
+    print("Respuesta del usuario: ${isAccepted ? 'ACEPTAR' : 'RECHAZAR'}");
+
+    // Cerrar el diálogo
+    Navigator.of(context).pop();
+
+    // Obtener el ViewModel
+    final serviceViewModel = Provider.of<ServiceStatusViewModel>(
+      context,
+      listen: false,
+    );
+
+    try {
+      // Si el clientId está vacío en el service, necesitamos obtenerlo del chat
+      if (serviceViewModel.currentService != null &&
+          serviceViewModel.currentService!.clientId.isEmpty) {
+        try {
+          // Obtener el documento del chat
+          final chatDoc =
+              await FirebaseFirestore.instance
+                  .collection('chats')
+                  .doc(widget.chatId)
+                  .get();
+
+          if (chatDoc.exists) {
+            final chatData = chatDoc.data() as Map<String, dynamic>?;
+            final chatClientId = chatData?['clientId'] as String?;
+
+            if (chatClientId != null && chatClientId.isNotEmpty) {
+              // Actualizar el clientId en el servicio
+              await FirebaseFirestore.instance
+                  .collection('service_requests')
+                  .doc(serviceViewModel.currentService!.id)
+                  .update({'clientId': chatClientId});
+
+              print("ClientId actualizado en el servicio: $chatClientId");
+            }
+          }
+        } catch (e) {
+          print("Error al actualizar clientId: $e");
+        }
+      }
+
+      if (isAccepted) {
+        print(
+          "Usuario aceptó la confirmación, mostrando diálogo de calificación",
+        );
+
+        // Mostrar diálogo de calificación
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => ServiceRatingDialog(
+                onSubmit: (rating, comment) {
+                  print(
+                    "Usuario calificó con $rating estrellas y comentario: $comment",
+                  );
+                  Navigator.of(context).pop();
+
+                  // Calificar el servicio
+                  serviceViewModel.rateService(rating, comment);
+
+                  // Mostrar mensaje de éxito
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Servicio calificado correctamente'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+              ),
+        );
+      } else {
+        print("Usuario rechazó la confirmación, revirtiendo a 'en progreso'");
+
+        // Revertir a "en progreso"
+        await serviceViewModel.rejectCompletion("");
+
+        // Mostrar mensaje informativo
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Has indicado que el trabajo aún no está completado'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error al procesar respuesta: $e');
+
+      // Mostrar mensaje de error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -187,6 +364,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         children: [
           // Service status card
           ServiceStatusCard(chatId: widget.chatId),
+
+          // Botón de verificación manual (temporal para debug)
+          ElevatedButton.icon(
+            onPressed: () {
+              _checkedService = false; // Reiniciar bandera
+              _checkServiceNeedsConfirmation(); // Verificar de nuevo
+            },
+            icon: Icon(Icons.refresh),
+            label: Text('Verificar confirmación pendiente'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          ),
 
           // Message list
           Expanded(

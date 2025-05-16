@@ -91,7 +91,6 @@ class _ServiceRatingDialogState extends State<ServiceRatingDialog> {
                           ? null
                           : _commentController.text,
                     );
-                    Navigator.of(context).pop();
                   },
           child: const Text('ENVIAR'),
         ),

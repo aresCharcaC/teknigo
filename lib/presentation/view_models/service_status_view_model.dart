@@ -293,21 +293,6 @@ class ServiceStatusViewModel extends BaseViewModel {
 
       setLoading();
 
-      print(
-        "Iniciando confirmación del servicio - messageId: $confirmationMessageId",
-      );
-
-      // Marcar el mensaje de confirmación como respondido y confirmado
-      if (confirmationMessageId.isNotEmpty) {
-        print("Actualizando mensaje de confirmación como respondido");
-        await _chatRepository.updateConfirmationMessageAsResponded(
-          confirmationMessageId,
-          true, // isConfirmed = true
-        );
-      } else {
-        print("Error: ID de mensaje de confirmación vacío");
-      }
-
       // Actualizar servicio a estado COMPLETADO si no lo está ya
       if (_currentService!.status != ServiceStatus.completed) {
         print("Actualizando estado del servicio a COMPLETADO");
@@ -317,14 +302,11 @@ class ServiceStatusViewModel extends BaseViewModel {
         );
       }
 
-      // Guardar el ID del mensaje de confirmación para usar más tarde
-      _currentConfirmationMessageId = confirmationMessageId;
-
       // Enviar mensaje normal de confirmación
       await _chatRepository.sendTextMessage(
         chatId: _currentService!.chatId,
         content:
-            "✅ He confirmado que el trabajo está completado. Ahora por favor califica el servicio.",
+            "✅ He confirmado que el trabajo está completado correctamente. Ahora calificaré el servicio.",
       );
 
       // Update local service
@@ -358,25 +340,12 @@ class ServiceStatusViewModel extends BaseViewModel {
       }
 
       setLoading();
-      print(
-        "Rechazando finalización del servicio - messageId: $confirmationMessageId",
-      );
+      print("Rechazando finalización del servicio");
 
       // Revertir el estado a "en progreso"
       final result = await _repository.revertToInProgress(_currentService!.id);
 
       if (result) {
-        // Actualizar mensaje de confirmación como respondido pero rechazado
-        if (confirmationMessageId.isNotEmpty) {
-          print("Actualizando mensaje de confirmación como rechazado");
-          await _chatRepository.updateConfirmationMessageAsResponded(
-            confirmationMessageId,
-            false, // isConfirmed = false
-          );
-        } else {
-          print("Error: ID de mensaje de confirmación vacío");
-        }
-
         // Enviar mensaje de rechazo
         await _chatRepository.sendTextMessage(
           chatId: _currentService!.chatId,
