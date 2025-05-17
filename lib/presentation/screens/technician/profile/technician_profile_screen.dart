@@ -18,6 +18,7 @@ import 'components/availability_section.dart';
 import 'components/social_links_section.dart';
 import 'location_picker_screen.dart';
 import 'components/rating_section.dart';
+import 'components/reviews_section.dart';
 
 class TechnicianProfileScreen extends StatefulWidget {
   const TechnicianProfileScreen({Key? key}) : super(key: key);
@@ -589,6 +590,16 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                       technicianViewModel.updateSocialLinks(links);
                     },
                   ),
+
+                  // Espacio para el botón flotante
+                  const SizedBox(height: 16),
+
+                  // Sección de reseñas (solo visible cuando no está en modo edición)
+                  if (!_isEditing)
+                    ReviewsSection(
+                      technicianId:
+                          technicianViewModel.technicianData['id'] ?? '',
+                    ),
 
                   // Espacio para el botón flotante
                   const SizedBox(height: 80),

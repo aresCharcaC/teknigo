@@ -23,78 +23,109 @@ class _ServiceRatingDialogState extends State<ServiceRatingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Califica el servicio'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Por favor, califica la calidad del servicio recibido:',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-
-            // Stars for rating
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return IconButton(
-                  icon: Icon(
-                    index < _rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                    size: 40,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _rating = index + 1;
-                    });
-                  },
-                );
-              }),
-            ),
-
-            const SizedBox(height: 8),
-            Text(
-              _getRatingText(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Field for comments (optional)
-            TextField(
-              controller: _commentController,
-              decoration: const InputDecoration(
-                labelText: 'Comentarios (opcional)',
-                hintText: 'Escribe tu opinión sobre el servicio',
-                border: OutlineInputBorder(),
+    return WillPopScope(
+      onWillPop: () async => false, // Evitar que se cierre con el botón atrás
+      child: AlertDialog(
+        title: const Text('Califica el servicio'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Por favor, califica la calidad del servicio recibido:',
+                textAlign: TextAlign.center,
               ),
-              maxLines: 3,
-            ),
-          ],
+              const SizedBox(height: 16),
+
+              // Stars for rating
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    icon: Icon(
+                      index < _rating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 40,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _rating = index + 1;
+                      });
+                    },
+                  );
+                }),
+              ),
+
+              const SizedBox(height: 8),
+              Text(
+                _getRatingText(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Field for comments (optional)
+              TextField(
+                controller: _commentController,
+                decoration: const InputDecoration(
+                  labelText: 'Comentarios (opcional)',
+                  hintText: 'Escribe tu opinión sobre el servicio',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder:
+                    (context) => AlertDialog(
+                      title: const Text('Calificación requerida'),
+                      content: const Text(
+                        'Debes calificar el servicio antes de continuar. ¿Deseas cancelar la calificación?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('SEGUIR CALIFICANDO'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('CANCELAR CALIFICACIÓN'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+              );
+            },
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            onPressed:
+                _rating == 0
+                    ? null
+                    : () {
+                      widget.onSubmit(
+                        _rating,
+                        _commentController.text.isEmpty
+                            ? null
+                            : _commentController.text,
+                      );
+                      Navigator.of(context).pop();
+                    },
+            child: const Text('ENVIAR'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('CANCELAR'),
-        ),
-        ElevatedButton(
-          onPressed:
-              _rating == 0
-                  ? null
-                  : () {
-                    widget.onSubmit(
-                      _rating,
-                      _commentController.text.isEmpty
-                          ? null
-                          : _commentController.text,
-                    );
-                  },
-          child: const Text('ENVIAR'),
-        ),
-      ],
     );
   }
 

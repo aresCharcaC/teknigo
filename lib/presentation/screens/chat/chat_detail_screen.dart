@@ -239,7 +239,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
 
     try {
-      // Si el clientId está vacío en el service, necesitamos obtenerlo del chat
+      // Si el clientId está vacío en el service, obtenerlo del chat
       if (serviceViewModel.currentService != null &&
           serviceViewModel.currentService!.clientId.isEmpty) {
         try {
@@ -274,52 +274,92 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           "Usuario aceptó la confirmación, mostrando diálogo de calificación",
         );
 
+        // Obtener información del técnico para la calificación
+        final technicianId =
+            serviceViewModel.currentService?.technicianId ?? '';
+        final technicianDoc =
+            await FirebaseFirestore.instance
+                .collection(AppConstants.techniciansCollection)
+                .doc(technicianId)
+                .get();
+
+        String technicianName = 'Técnico';
+        if (technicianDoc.exists) {
+          final techData = technicianDoc.data() as Map<String, dynamic>?;
+          technicianName = techData?['name'] ?? 'Técnico';
+        }
+
         // Mostrar diálogo de calificación
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder:
-              (context) => ServiceRatingDialog(
-                onSubmit: (rating, comment) {
-                  print(
-                    "Usuario calificó con $rating estrellas y comentario: $comment",
-                  );
-                  Navigator.of(context).pop();
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (context) => ServiceRatingDialog(
+                  onSubmit: (rating, comment) {
+                    print(
+                      "Usuario calificó con $rating estrellas y comentario: $comment",
+                    );
 
-                  // Calificar el servicio
-                  serviceViewModel.rateService(rating, comment);
-
-                  // Mostrar mensaje de éxito
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Servicio calificado correctamente'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-              ),
-        );
+                    // Calificar el servicio
+                    serviceViewModel.rateService(rating, comment).then((
+                      result,
+                    ) {
+                      if (result.isSuccess) {
+                        // Mostrar mensaje de éxito
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '¡Gracias por calificar a $technicianName!',
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        // Mostrar mensaje de error
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Error al calificar: ${result.error}',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    });
+                  },
+                ),
+          );
+        }
       } else {
         print("Usuario rechazó la confirmación, revirtiendo a 'en progreso'");
 
         // Revertir a "en progreso"
-        await serviceViewModel.rejectCompletion("");
+        final result = await serviceViewModel.rejectCompletion("");
 
-        // Mostrar mensaje informativo
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Has indicado que el trabajo aún no está completado'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        if (mounted) {
+          // Mostrar mensaje informativo
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result.isSuccess
+                    ? 'Has indicado que el trabajo aún no está completado'
+                    : 'Error: ${result.error}',
+              ),
+              backgroundColor: result.isSuccess ? Colors.orange : Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       print('Error al procesar respuesta: $e');
 
-      // Mostrar mensaje de error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        // Mostrar mensaje de error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

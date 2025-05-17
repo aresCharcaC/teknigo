@@ -382,6 +382,9 @@ class ServiceStatusViewModel extends BaseViewModel {
       }
 
       setLoading();
+      print(
+        'Enviando calificación: $rating estrellas con comentario: $comment',
+      );
 
       final result = await _repository.rateService(
         _currentService!.id,
@@ -396,20 +399,24 @@ class ServiceStatusViewModel extends BaseViewModel {
           stars += '⭐';
         }
 
+        final message =
+            "$stars Servicio calificado con $rating estrellas" +
+            (comment != null && comment.isNotEmpty ? ": $comment" : "");
+
         await _chatRepository.sendTextMessage(
           chatId: _currentService!.chatId,
-          content:
-              "$stars Servicio calificado con $rating estrellas" +
-              (comment != null ? ": $comment" : ""),
+          content: message,
         );
 
-        // Update local service - CAMBIAR EL ESTADO A RATED
+        // Update local service
         _currentService = _currentService!.copyWith(
           status: ServiceStatus.rated,
           finishedAt: DateTime.now(),
-          clientRating: rating,
-          clientReview: comment,
+          technicianRating: rating,
+          technicianReview: comment,
         );
+
+        print('Servicio calificado correctamente');
       }
 
       setLoaded();

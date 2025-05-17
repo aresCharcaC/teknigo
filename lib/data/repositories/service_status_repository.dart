@@ -185,40 +185,36 @@ class ServiceStatusRepository {
   ) async {
     try {
       print(
-        'ServiceStatusRepository: Rating service: $serviceId with rating: $rating',
+        'ServiceStatusRepository: Calificando servicio $serviceId con $rating estrellas',
       );
       final user = _auth.currentUser;
       if (user == null) {
-        print('ServiceStatusRepository: No authenticated user');
+        print('ServiceStatusRepository: No hay usuario autenticado');
         return false;
       }
 
       final doc =
           await _firestore.collection('service_requests').doc(serviceId).get();
       if (!doc.exists) {
-        print('ServiceStatusRepository: Service not found: $serviceId');
+        print('ServiceStatusRepository: Servicio no encontrado: $serviceId');
         return false;
       }
 
       final serviceData = doc.data() as Map<String, dynamic>;
 
-      // Check that current user is the client
+      // Verificar que el usuario actual es el cliente
       if (serviceData['clientId'] != user.uid) {
-        print(
-          'ServiceStatusRepository: User is not the client of this service',
-        );
+        print('ServiceStatusRepository: Usuario no es el cliente del servicio');
         return false;
       }
 
       final technicianId = serviceData['technicianId'];
       if (technicianId == null) {
-        print(
-          'ServiceStatusRepository: No technician assigned to this service',
-        );
+        print('ServiceStatusRepository: No hay técnico asignado al servicio');
         return false;
       }
 
-      // Update the service
+      // Actualizar el servicio
       await _firestore.collection('service_requests').doc(serviceId).update({
         'status': ServiceStatus.rated.value,
         'finishedAt': FieldValue.serverTimestamp(),
@@ -226,26 +222,30 @@ class ServiceStatusRepository {
         'technicianReview': comment,
       });
 
-      print('ServiceStatusRepository: Service rated successfully');
+      print('ServiceStatusRepository: Servicio calificado correctamente');
 
-      // Create review
-      await _firestore.collection('reviews').add({
+      // Crear la reseña
+      final reviewRef = _firestore.collection('reviews').doc();
+
+      await reviewRef.set({
         'serviceId': serviceId,
         'reviewerId': user.uid,
         'reviewedId': technicianId,
         'rating': rating,
         'comment': comment,
         'createdAt': FieldValue.serverTimestamp(),
+        'isVisible': true,
+        'serviceName': serviceData['title'] ?? 'Servicio técnico',
       });
 
-      print('ServiceStatusRepository: Review created successfully');
+      print('ServiceStatusRepository: Reseña creada correctamente');
 
-      // Update technician's average rating
+      // Actualizar la calificación promedio del técnico
       await _updateTechnicianRating(technicianId);
 
       return true;
     } catch (e) {
-      print('ServiceStatusRepository: Error rating service: $e');
+      print('ServiceStatusRepository: Error al calificar servicio: $e');
       return false;
     }
   }
@@ -253,45 +253,74 @@ class ServiceStatusRepository {
   // Helper method to update technician's average rating
   Future<void> _updateTechnicianRating(String technicianId) async {
     try {
-      // Get all reviews for this technician
+      print('Actualizando calificación promedio para técnico: $technicianId');
+
+      // Obtener todas las reseñas para este técnico
       final reviewsSnapshot =
           await _firestore
               .collection('reviews')
               .where('reviewedId', isEqualTo: technicianId)
+              .where('isVisible', isEqualTo: true)
               .get();
 
       if (reviewsSnapshot.docs.isEmpty) {
-        print(
-          'ServiceStatusRepository: No reviews found for technician: $technicianId',
-        );
+        print('No se encontraron reseñas para el técnico: $technicianId');
         return;
       }
 
-      // Calculate average rating
+      // Calcular calificación promedio
       double totalRating = 0;
-      int reviewCount = 0;
+      int reviewCount = reviewsSnapshot.docs.length;
 
       for (var doc in reviewsSnapshot.docs) {
         final reviewData = doc.data();
         if (reviewData.containsKey('rating')) {
           totalRating += (reviewData['rating'] as num).toDouble();
-          reviewCount++;
         }
       }
 
-      final averageRating = totalRating / reviewCount;
+      final averageRating = reviewCount > 0 ? totalRating / reviewCount : 0.0;
 
-      // Update technician's profile
+      // Redondear a 1 decimal
+      final roundedRating = double.parse(averageRating.toStringAsFixed(1));
+
+      print(
+        'Nueva calificación promedio: $roundedRating de $reviewCount reseñas',
+      );
+
+      // Actualizar perfil del técnico
       await _firestore
           .collection(AppConstants.techniciansCollection)
           .doc(technicianId)
-          .update({'rating': averageRating, 'reviewCount': reviewCount});
+          .update({
+            'rating': roundedRating,
+            'reviewCount': reviewCount,
+            'lastRatingUpdate': FieldValue.serverTimestamp(),
+          });
 
-      print(
-        'ServiceStatusRepository: Technician rating updated to: $averageRating from $reviewCount reviews',
-      );
+      // También actualizar el contador de trabajos completados si existe
+      final techDoc =
+          await _firestore
+              .collection(AppConstants.techniciansCollection)
+              .doc(technicianId)
+              .get();
+
+      if (techDoc.exists) {
+        final techData = techDoc.data() as Map<String, dynamic>;
+        int completedJobs = (techData['completedJobs'] as int?) ?? 0;
+        completedJobs++;
+
+        await _firestore
+            .collection(AppConstants.techniciansCollection)
+            .doc(technicianId)
+            .update({'completedJobs': completedJobs});
+
+        print('Contador de trabajos completados actualizado: $completedJobs');
+      }
+
+      print('Perfil del técnico actualizado correctamente');
     } catch (e) {
-      print('ServiceStatusRepository: Error updating technician rating: $e');
+      print('Error al actualizar calificación del técnico: $e');
     }
   }
 
