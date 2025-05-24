@@ -259,6 +259,74 @@ class ServiceRequestRepository {
     }
   }
 
+  // Update an existing service request
+  Future<bool> updateServiceRequest(
+    String requestId,
+    ServiceRequestModel updatedRequest,
+    List<File>? newPhotos,
+  ) async {
+    try {
+      print("Repository: Updating service request: $requestId");
+
+      final user = _auth.currentUser;
+      if (user == null) {
+        print("Repository: No authenticated user");
+        return false;
+      }
+
+      // Verificar que la solicitud existe y pertenece al usuario
+      final docRef = _firestore.collection(_collectionName).doc(requestId);
+      final docSnapshot = await docRef.get();
+
+      if (!docSnapshot.exists) {
+        print("Repository: Request not found: $requestId");
+        return false;
+      }
+
+      final existingData = docSnapshot.data() as Map<String, dynamic>;
+      if (existingData['userId'] != user.uid) {
+        print("Repository: User doesn't own this request");
+        return false;
+      }
+
+      // Solo permitir actualizar si el estado es 'pending'
+      if (existingData['status'] != 'pending') {
+        print(
+          "Repository: Cannot update request with status: ${existingData['status']}",
+        );
+        return false;
+      }
+
+      // Preparar datos actualizados
+      Map<String, dynamic> updateData = updatedRequest.toFirestore();
+      updateData['updatedAt'] = FieldValue.serverTimestamp();
+
+      // Si hay nuevas fotos, subirlas
+      if (newPhotos != null && newPhotos.isNotEmpty) {
+        print("Repository: Uploading ${newPhotos.length} new photos");
+        final newPhotoUrls = await _uploadPhotos(user.uid, newPhotos);
+
+        // Combinar con fotos existentes si las hay
+        List<String> allPhotos = [];
+        if (updatedRequest.photos != null) {
+          allPhotos.addAll(updatedRequest.photos!);
+        }
+        allPhotos.addAll(newPhotoUrls);
+
+        updateData['photos'] = allPhotos;
+      }
+
+      // Actualizar en Firestore
+      await docRef.update(updateData);
+
+      print('Repository: Request updated successfully: $requestId');
+      return true;
+    } catch (e) {
+      print('Repository: Error updating request: $e');
+      return false;
+    }
+  }
+
   // Método para que el cliente califique y finalice el servicio
   Future<bool> rateAndFinishService(
     String serviceId,

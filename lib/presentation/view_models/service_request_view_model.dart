@@ -52,6 +52,58 @@ class ServiceRequestViewModel extends BaseViewModel {
     }
   }
 
+  Future<Resource<bool>> updateServiceRequest(
+    String requestId,
+    ServiceRequestModel updatedRequest,
+    List<File>? newPhotos,
+  ) async {
+    try {
+      print("Updating service request: $requestId");
+      setLoading();
+
+      final user = _auth.currentUser;
+      if (user == null) {
+        setError('Usuario no autenticado');
+        return Resource.error('Usuario no autenticado');
+      }
+
+      // Actualizar en el repositorio
+      final success = await _repository.updateServiceRequest(
+        requestId,
+        updatedRequest,
+        newPhotos,
+      );
+
+      if (success) {
+        // Actualizar la solicitud actual si es la misma
+        if (_currentRequest != null && _currentRequest!.id == requestId) {
+          _currentRequest = updatedRequest;
+        }
+
+        // Actualizar en la lista local
+        final index = _userRequests.indexWhere((req) => req.id == requestId);
+        if (index != -1) {
+          _userRequests[index] = updatedRequest;
+        }
+
+        notifyListeners();
+
+        // Recargar datos después de un breve delay
+        _reloadAfterDelay();
+
+        setLoaded();
+        return Resource.success(true);
+      } else {
+        setError('Error al actualizar la solicitud');
+        return Resource.error('Error al actualizar la solicitud');
+      }
+    } catch (e) {
+      final errorMsg = 'Error al actualizar solicitud: $e';
+      setError(errorMsg);
+      return Resource.error(errorMsg);
+    }
+  }
+
   // Start real-time listener
   void _startRequestsListener() {
     try {

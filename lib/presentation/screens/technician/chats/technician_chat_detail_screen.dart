@@ -9,7 +9,7 @@ import '../../../view_models/service_status_view_model.dart';
 import '../../../screens/chat/components/chat_app_bar.dart';
 import '../../../screens/chat/components/chat_input.dart';
 import '../../../screens/chat/components/message_bubble.dart';
-import '../components/technician_service_status_card.dart'; // Cambiado aquí
+import '../components/technician_service_status_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class TechnicianChatDetailScreen extends StatefulWidget {
