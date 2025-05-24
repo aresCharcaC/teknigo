@@ -31,7 +31,7 @@ class UserModel {
       email: map['email'] ?? '',
       phone: map['phone'],
       profileImage: map['profileImage'],
-      userType: map['userType'] ?? 'regular',
+      userType: map['userType'] ?? 'client',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastLogin: (map['lastLogin'] as Timestamp?)?.toDate() ?? DateTime.now(),
       authProvider: map['authProvider'],
@@ -79,6 +79,6 @@ class UserModel {
   // Verificar si el usuario es un negocio
   bool get isBusiness => userType == 'business';
 
-  // Verificar si el usuario es regular
-  bool get isRegular => userType == 'regular';
+  // Verificar si el usuario es client
+  bool get isRegular => userType == 'client';
 }

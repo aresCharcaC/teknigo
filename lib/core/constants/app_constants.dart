@@ -29,7 +29,7 @@ class AppConstants {
   static const String locationPermissionKey = 'location_permission';
 
   // Tipo de usuario
-  static const String userTypeRegular = 'regular';
+  static const String userTypeRegular = 'client';
   static const String userTypeTechnician = 'technician';
   static const String userTypeBusiness = 'business';
   static const String userTypeAdmin = 'admin';
