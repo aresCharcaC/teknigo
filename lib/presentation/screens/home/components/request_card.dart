@@ -13,15 +13,16 @@ class RequestCard extends StatelessWidget {
 
   const RequestCard({Key? key, required this.request}) : super(key: key);
 
-  // Confirm deletion of request
+  // MÉTODO DE ELIMINACIÓN SIMPLIFICADO Y FUNCIONAL
   Future<void> _confirmDelete(
     BuildContext context,
     String requestId,
     ServiceRequestViewModel viewModel,
   ) async {
     try {
-      print("Starting delete confirmation for request: $requestId");
+      print("Iniciando confirmación de eliminación para: $requestId");
 
+      // Mostrar diálogo de confirmación
       final confirmed = await showDialog<bool>(
         context: context,
         builder:
@@ -44,52 +45,50 @@ class RequestCard extends StatelessWidget {
             ),
       );
 
-      print("Dialog result: $confirmed");
+      print("Resultado del diálogo: $confirmed");
 
-      if (confirmed == true) {
-        // Store context for later use
-        final scaffoldContext = ScaffoldMessenger.of(context);
+      // Si el usuario confirmó la eliminación
+      if (confirmed == true && context.mounted) {
+        // Mostrar indicador de carga
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => const Center(child: CircularProgressIndicator()),
+        );
 
-        // Show loading indicator
-        BuildContext? dialogContext;
-        if (context.mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) {
-              dialogContext = context;
-              return const Center(child: CircularProgressIndicator());
-            },
-          );
-        }
+        print("Llamando deleteServiceRequest");
 
-        print("Calling deleteServiceRequest");
+        // Intentar eliminar la solicitud
         final result = await viewModel.deleteServiceRequest(requestId);
 
-        // Close loading indicator - IMPORTANT FIX: Only try to pop if context is still mounted
-        if (dialogContext != null && Navigator.canPop(dialogContext!)) {
-          Navigator.pop(dialogContext!);
+        // Cerrar indicador de carga
+        if (context.mounted) {
+          Navigator.pop(context);
         }
 
-        if (scaffoldContext.mounted) {
+        // Mostrar resultado
+        if (context.mounted) {
           if (result.isSuccess) {
-            print("Delete successful, showing success message");
-            scaffoldContext.showSnackBar(
+            print("Eliminación exitosa");
+            ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Solicitud eliminada correctamente'),
+                backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
               ),
             );
 
-            // Explicitly reload requests after deletion
+            // Forzar recarga de datos
             viewModel.reloadRequests();
           } else {
-            print("Delete failed: ${result.error}");
-            scaffoldContext.showSnackBar(
+            print("Error en eliminación: ${result.error}");
+            ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
                   'Error al eliminar la solicitud: ${result.error}',
                 ),
+                backgroundColor: Colors.red,
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -97,18 +96,18 @@ class RequestCard extends StatelessWidget {
         }
       }
     } catch (e) {
-      print("Exception in _confirmDelete: $e");
-      // Close any open dialogs by popping to first route
-      if (context.mounted) {
-        // Use a safer approach to dismiss dialogs
-        Navigator.of(
-          context,
-          rootNavigator: true,
-        ).popUntil((route) => route.isFirst);
+      print("Excepción en _confirmDelete: $e");
 
+      // Asegurar que cerramos cualquier diálogo de carga abierto
+      if (context.mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al eliminar la solicitud: $e'),
+            backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -118,6 +117,7 @@ class RequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Obtener el ViewModel directamente en el build
     final requestViewModel = Provider.of<ServiceRequestViewModel>(
       context,
       listen: false,
@@ -128,7 +128,7 @@ class RequestCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
-          // Navigate to request detail screen
+          // Navegar a detalles
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -137,7 +137,7 @@ class RequestCard extends StatelessWidget {
                       ServiceRequestDetailScreen(requestId: request.id),
             ),
           ).then((_) {
-            // Reload data when returning from detail screen
+            // Recargar datos cuando regrese
             requestViewModel.reloadRequests();
           });
         },
@@ -147,7 +147,7 @@ class RequestCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Status and date
+              // Estado y fecha
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -178,11 +178,11 @@ class RequestCard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Title and category icon
+              // Título e icono de categoría
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Category icon (using the first category)
+                  // Icono de categoría
                   Consumer<CategoryViewModel>(
                     builder: (context, categoryViewModel, child) {
                       CategoryModel? category;
@@ -192,7 +192,6 @@ class RequestCard extends StatelessWidget {
                             (c) => c.id == request.categoryIds.first,
                           );
                         } catch (e) {
-                          // If category not found, use a default one
                           category = null;
                         }
                       }
@@ -214,7 +213,7 @@ class RequestCard extends StatelessWidget {
 
                   const SizedBox(width: 12),
 
-                  // Title and description
+                  // Título y descripción
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,7 +247,7 @@ class RequestCard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Urgency and location
+              // Urgencia y ubicación
               Row(
                 children: [
                   if (request.isUrgent)
@@ -299,7 +298,7 @@ class RequestCard extends StatelessWidget {
 
                   const Spacer(),
 
-                  // Delete button - now showing for any status
+                  // Botón eliminar - SIMPLIFICADO
                   GestureDetector(
                     onTap:
                         () => _confirmDelete(

@@ -1,21 +1,156 @@
-// lib/presentation/screens/service_request/components/service_detail_actions.dart
+// lib/presentation/screens/service_request/components/service_detail_actions.dart - TOTALMENTE CORREGIDO
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/models/service_request_model.dart';
 import '../../../view_models/service_request_view_model.dart';
 import '../edit_service_request_screen.dart';
 
-class ServiceDetailActions extends StatelessWidget {
+class ServiceDetailActions extends StatefulWidget {
   final ServiceRequestModel request;
 
   const ServiceDetailActions({Key? key, required this.request})
     : super(key: key);
 
   @override
+  _ServiceDetailActionsState createState() => _ServiceDetailActionsState();
+}
+
+class _ServiceDetailActionsState extends State<ServiceDetailActions> {
+  bool _isDisposed = false;
+  ScaffoldMessengerState? _scaffoldMessenger;
+  ServiceRequestViewModel? _requestViewModel;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // GUARDAR REFERENCIAS SEGURAS
+    if (!_isDisposed && mounted) {
+      try {
+        _scaffoldMessenger = ScaffoldMessenger.of(context);
+        _requestViewModel = Provider.of<ServiceRequestViewModel>(
+          context,
+          listen: false,
+        );
+      } catch (e) {
+        print('Error obteniendo referencias en ServiceDetailActions: $e');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    print('ServiceDetailActions dispose()');
+    _isDisposed = true;
+    _scaffoldMessenger = null;
+    _requestViewModel = null;
+    super.dispose();
+  }
+
+  // MÉTODO SEGURO PARA MOSTRAR SNACKBAR
+  void _showSafeSnackBar(String message, {Color? backgroundColor}) {
+    final messenger = _scaffoldMessenger;
+    if (messenger != null && !_isDisposed) {
+      try {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: backgroundColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (e) {
+        print('Error mostrando SnackBar en ServiceDetailActions: $e');
+      }
+    }
+  }
+
+  // MÉTODO SEGURO PARA MOSTRAR DIALOGO
+  Future<bool?> _showSafeDialog(Widget dialog) async {
+    if (!_isDisposed && mounted) {
+      try {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => dialog,
+        );
+      } catch (e) {
+        print('Error mostrando diálogo: $e');
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // MÉTODO SEGURO PARA MOSTRAR DIALOGO DE CARGA
+  void _showSafeLoadingDialog() {
+    if (!_isDisposed && mounted) {
+      try {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => const Center(child: CircularProgressIndicator()),
+        );
+      } catch (e) {
+        print('Error mostrando diálogo de carga: $e');
+      }
+    }
+  }
+
+  // MÉTODO SEGURO PARA CERRAR DIALOGO
+  void _safePopDialog() {
+    if (!_isDisposed && mounted && Navigator.canPop(context)) {
+      try {
+        Navigator.pop(context);
+      } catch (e) {
+        print('Error cerrando diálogo: $e');
+      }
+    }
+  }
+
+  // MÉTODO SEGURO PARA NAVEGAR
+  Future<void> _safeNavigate(Widget destination) async {
+    if (!_isDisposed && mounted) {
+      try {
+        final result = await Navigator.push<bool?>(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+
+        // Manejar resultado de navegación
+        if (result == true && !_isDisposed) {
+          _showSafeSnackBar(
+            '✅ Solicitud actualizada correctamente',
+            backgroundColor: Colors.green,
+          );
+
+          // Actualizar la vista actual
+          final requestViewModel = _requestViewModel;
+          if (requestViewModel != null) {
+            requestViewModel.getServiceRequestById(widget.request.id);
+          }
+        }
+      } catch (e) {
+        print('Error navegando: $e');
+        if (!_isDisposed) {
+          _showSafeSnackBar(
+            'Error de navegación: $e',
+            backgroundColor: Colors.red,
+          );
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isDisposed) {
+      return const SizedBox.shrink();
+    }
+
     // Solo mostrar acciones si el estado permite interacción
-    final canEdit = request.status == 'pending';
-    final canCancel = ['pending', 'offered'].contains(request.status);
+    final canEdit = widget.request.status == 'pending';
+    final canCancel = ['pending', 'offered'].contains(widget.request.status);
 
     if (!canEdit && !canCancel) {
       return const SizedBox.shrink();
@@ -42,7 +177,7 @@ class ServiceDetailActions extends StatelessWidget {
                 if (canEdit) ...[
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _editRequest(context),
+                      onPressed: _isDisposed ? null : () => _editRequest(),
                       icon: const Icon(Icons.edit),
                       label: const Text(
                         'Editar',
@@ -62,10 +197,12 @@ class ServiceDetailActions extends StatelessWidget {
                 if (canCancel) ...[
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _confirmCancel(context),
+                      onPressed: _isDisposed ? null : () => _confirmCancel(),
                       icon: const Icon(Icons.cancel),
                       label: Text(
-                        request.status == 'pending' ? 'Eliminar' : 'Cancelar',
+                        widget.request.status == 'pending'
+                            ? 'Eliminar'
+                            : 'Cancelar',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -96,141 +233,113 @@ class ServiceDetailActions extends StatelessWidget {
   }
 
   String _getActionInfoText() {
-    if (request.status == 'pending') {
+    if (widget.request.status == 'pending') {
       return 'Puedes editar o eliminar esta solicitud mientras no haya propuestas.';
-    } else if (request.status == 'offered') {
+    } else if (widget.request.status == 'offered') {
       return 'Ya hay propuestas para esta solicitud. Solo puedes cancelarla.';
     }
     return '';
   }
 
-  void _editRequest(BuildContext context) async {
-    // Navegar a la pantalla de edición y esperar el resultado
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EditServiceRequestScreen(request: request),
+  void _editRequest() {
+    if (_isDisposed) return;
+    _safeNavigate(EditServiceRequestScreen(request: widget.request));
+  }
+
+  void _confirmCancel() {
+    if (_isDisposed) return;
+
+    final actionText =
+        widget.request.status == 'pending' ? 'eliminar' : 'cancelar';
+    final actionTextCaps =
+        widget.request.status == 'pending' ? 'ELIMINAR' : 'CANCELAR';
+
+    _showSafeDialog(
+      AlertDialog(
+        title: Text(
+          '${actionTextCaps.toLowerCase().capitalizeFirst()} solicitud',
+        ),
+        content: Text(
+          '¿Estás seguro de que deseas $actionText esta solicitud?${widget.request.status == 'pending' ? ' Esta acción no se puede deshacer.' : ''}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('NO'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _cancelRequest();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(actionTextCaps),
+          ),
+        ],
       ),
     );
-
-    // Si se editó exitosamente (result == true)
-    if (result == true) {
-      // Mostrar mensaje de éxito AQUÍ en lugar del EditScreen
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Solicitud actualizada correctamente'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
-      // Actualizar la vista actual
-      final requestViewModel = Provider.of<ServiceRequestViewModel>(
-        context,
-        listen: false,
-      );
-      requestViewModel.getServiceRequestById(request.id);
-    }
   }
 
-  void _confirmCancel(BuildContext context) {
-    final actionText = request.status == 'pending' ? 'eliminar' : 'cancelar';
-    final actionTextCaps =
-        request.status == 'pending' ? 'ELIMINAR' : 'CANCELAR';
+  Future<void> _cancelRequest() async {
+    if (_isDisposed) return;
 
-    showDialog(
-      context: context,
-      builder:
-          (dialogContext) => AlertDialog(
-            title: Text(
-              '${actionTextCaps.toLowerCase().capitalizeFirst()} solicitud',
-            ),
-            content: Text(
-              '¿Estás seguro de que deseas $actionText esta solicitud?${request.status == 'pending' ? ' Esta acción no se puede deshacer.' : ''}',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('NO'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _cancelRequest(context);
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
-                ),
-                child: Text(actionTextCaps),
-              ),
-            ],
-          ),
-    );
-  }
-
-  Future<void> _cancelRequest(BuildContext context) async {
     try {
       // Mostrar indicador de carga
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
+      _showSafeLoadingDialog();
 
-      final requestViewModel = Provider.of<ServiceRequestViewModel>(
-        context,
-        listen: false,
-      );
+      final requestViewModel = _requestViewModel;
+      if (requestViewModel == null) {
+        throw Exception('ViewModel no disponible');
+      }
 
-      final result = await requestViewModel.deleteServiceRequest(request.id);
+      final result = await requestViewModel.deleteServiceRequest(
+        widget.request.id,
+      );
 
       // Cerrar indicador de carga
-      if (context.mounted) Navigator.pop(context);
+      _safePopDialog();
 
-      if (result.isSuccess) {
-        // Mostrar mensaje de éxito
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                request.status == 'pending'
-                    ? 'Solicitud eliminada correctamente'
-                    : 'Solicitud cancelada correctamente',
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
+      if (!_isDisposed) {
+        if (result.isSuccess) {
+          // Mostrar mensaje de éxito
+          _showSafeSnackBar(
+            widget.request.status == 'pending'
+                ? 'Solicitud eliminada correctamente'
+                : 'Solicitud cancelada correctamente',
+            backgroundColor: Colors.green,
           );
 
-          // Volver a la pantalla anterior
-          Navigator.pop(context);
-        }
-      } else {
-        // Mostrar error
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${result.error}'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              behavior: SnackBarBehavior.floating,
-            ),
+          // Volver a la pantalla anterior de forma segura
+          if (mounted && Navigator.canPop(context)) {
+            // Usar WidgetsBinding para navegar de forma segura
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!_isDisposed && mounted && Navigator.canPop(context)) {
+                try {
+                  Navigator.pop(context);
+                } catch (e) {
+                  print('Error navegando de vuelta después de cancelar: $e');
+                }
+              }
+            });
+          }
+        } else {
+          // Mostrar error
+          _showSafeSnackBar(
+            'Error: ${result.error}',
+            backgroundColor: Theme.of(context).colorScheme.error,
           );
         }
       }
     } catch (e) {
       // Cerrar indicador de carga en caso de error
-      if (context.mounted) Navigator.pop(context);
+      _safePopDialog();
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error inesperado: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+      if (!_isDisposed) {
+        _showSafeSnackBar(
+          'Error inesperado: $e',
+          backgroundColor: Theme.of(context).colorScheme.error,
         );
       }
     }

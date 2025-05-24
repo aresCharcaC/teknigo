@@ -1,4 +1,4 @@
-// lib/presentation/screens/service_request/edit_service_request_screen.dart
+// lib/presentation/screens/service_request/edit_service_request_screen.dart - CORREGIDO
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/service_request_model.dart';
@@ -32,9 +32,10 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
   bool _categoriesLoaded = false;
   bool _isDisposed = false;
 
-  // Referencias guardadas para uso seguro
+  // Referencias guardadas ANTES de que el widget se desmonte
   ServiceRequestViewModel? _requestViewModel;
   CategoryViewModel? _categoryViewModel;
+  ScaffoldMessengerState? _scaffoldMessenger;
 
   @override
   void initState() {
@@ -54,7 +55,7 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // Guardar referencias de ViewModels de forma segura
+    // CRÍTICO: Guardar referencias de forma segura aquí
     if (!_isDisposed && mounted) {
       try {
         _requestViewModel = Provider.of<ServiceRequestViewModel>(
@@ -65,6 +66,7 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
           context,
           listen: false,
         );
+        _scaffoldMessenger = ScaffoldMessenger.of(context);
       } catch (e) {
         print('Error obteniendo ViewModels: $e');
       }
@@ -104,28 +106,44 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
     }
   }
 
+  // Método seguro para mostrar SnackBar usando la referencia guardada
+  void _showSafeSnackBar(String message, {Color? backgroundColor}) {
+    final messenger = _scaffoldMessenger;
+    if (messenger != null && !_isDisposed) {
+      try {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: backgroundColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (e) {
+        print('Error mostrando SnackBar: $e');
+      }
+    }
+  }
+
   Future<void> _submitForm() async {
-    // Verificación inicial
-    if (_isDisposed || !mounted) return;
+    // Verificación inicial - muy importante
+    if (_isDisposed || !mounted) {
+      print('Widget disposed o desmontado, cancelando submit');
+      return;
+    }
 
     if (!_formKey.currentState!.validate()) return;
 
     final validationError = _formData.validate();
     if (validationError != null) {
-      if (!_isDisposed && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(validationError),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _showSafeSnackBar(validationError);
       return;
     }
 
     if (_formData.isSubmitting) return;
 
-    // Marcar como enviando
+    print('Iniciando submit del formulario de edición');
+
+    // Marcar como enviando de forma segura
     if (!_isDisposed && mounted) {
       setState(() {
         _formData.setSubmitting(true);
@@ -140,78 +158,95 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
         throw Exception('ViewModel no disponible');
       }
 
+      print('Enviando actualización al repositorio...');
       final result = await requestViewModel.updateServiceRequest(
         widget.request.id,
         updatedRequest,
         _formData.photoFiles.isEmpty ? null : _formData.photoFiles,
       );
 
-      // Verificar que el widget siga activo después de la operación asíncrona
-      if (_isDisposed || !mounted) return;
+      print('Resultado de actualización: ${result.isSuccess}');
+
+      // CRÍTICO: Verificar que el widget siga activo después de la operación asíncrona
+      if (_isDisposed || !mounted) {
+        print('Widget se desmontó durante la operación asíncrona');
+        return;
+      }
 
       if (result.isSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Solicitud actualizada correctamente'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+        print('Actualización exitosa, mostrando mensaje y navegando');
+
+        // Mostrar mensaje de éxito usando referencia segura
+        _showSafeSnackBar(
+          'Solicitud actualizada correctamente',
+          backgroundColor: Colors.green,
         );
 
-        // Delay pequeño para que se muestre el mensaje
-        await Future.delayed(const Duration(milliseconds: 150));
+        // Delay para que se muestre el mensaje antes de navegar
+        await Future.delayed(const Duration(milliseconds: 200));
 
-        if (!_isDisposed && mounted) {
+        // Verificar nuevamente antes de navegar
+        if (!_isDisposed && mounted && Navigator.canPop(context)) {
           Navigator.pop(context, true);
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${result.error}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
+        print('Error en actualización: ${result.error}');
+        _showSafeSnackBar(
+          'Error: ${result.error}',
+          backgroundColor: Colors.red,
         );
       }
     } catch (e) {
-      print('Error en _submitForm: $e');
-      if (!_isDisposed && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      print('Excepción en _submitForm: $e');
+      _showSafeSnackBar('Error al actualizar: $e', backgroundColor: Colors.red);
     } finally {
-      // Marcar como no enviando
+      // Marcar como no enviando de forma muy segura
       if (!_isDisposed && mounted) {
-        setState(() {
-          _formData.setSubmitting(false);
-        });
+        try {
+          setState(() {
+            _formData.setSubmitting(false);
+          });
+        } catch (e) {
+          print('Error al actualizar estado de submit: $e');
+        }
       }
     }
   }
 
   void _safeUpdateState(VoidCallback update) {
     if (!_isDisposed && mounted) {
-      update();
-      setState(() {});
+      try {
+        update();
+        setState(() {});
+      } catch (e) {
+        print('Error en _safeUpdateState: $e');
+      }
     }
   }
 
   @override
   void dispose() {
+    print('EditServiceRequestScreen dispose() llamado');
     _isDisposed = true;
+
+    // Limpiar recursos
     _formData.dispose();
+
+    // Limpiar referencias
     _requestViewModel = null;
     _categoryViewModel = null;
+    _scaffoldMessenger = null;
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Si está disposed, no construir nada
+    if (_isDisposed) {
+      return const SizedBox.shrink();
+    }
+
     if (!_isInitialized || !_categoriesLoaded) {
       return Scaffold(
         appBar: AppBar(title: const Text('Editar Solicitud'), elevation: 0),
@@ -234,12 +269,13 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
         elevation: 0,
         actions: [
           TextButton(
-            onPressed: _formData.isSubmitting ? null : _submitForm,
+            onPressed:
+                (_formData.isSubmitting || _isDisposed) ? null : _submitForm,
             child: Text(
               'GUARDAR',
               style: TextStyle(
                 color:
-                    _formData.isSubmitting
+                    (_formData.isSubmitting || _isDisposed)
                         ? Colors.grey
                         : Theme.of(context).colorScheme.onPrimary,
                 fontWeight: FontWeight.bold,
@@ -285,7 +321,10 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
               ),
               const SizedBox(height: 32),
 
-              EditSubmitButton(formData: _formData, onSubmit: _submitForm),
+              EditSubmitButton(
+                formData: _formData,
+                onSubmit: (_isDisposed) ? () {} : _submitForm,
+              ),
             ],
           ),
         ),

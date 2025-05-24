@@ -1,4 +1,4 @@
-// lib/presentation/screens/home/components/photo_picker.dart
+// lib/presentation/screens/home/components/photo_picker.dart - CORREGIDO
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,15 +25,16 @@ class _PhotoPickerState extends State<PhotoPicker> {
   final ImagePicker _picker = ImagePicker();
   bool _isDisposed = false;
 
-  // Referencia segura al ScaffoldMessenger
+  // Referencia segura al ScaffoldMessenger obtenida en didChangeDependencies
   ScaffoldMessengerState? _scaffoldMessenger;
 
   @override
   void initState() {
     super.initState();
+    print('PhotoPicker initState() llamado');
 
-    // Notificación inicial diferida
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Notificación inicial diferida para evitar setState durante build
+    Future.microtask(() {
       _safeNotifyParent();
     });
   }
@@ -42,33 +43,34 @@ class _PhotoPickerState extends State<PhotoPicker> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // Guardar referencia segura al ScaffoldMessenger
-    try {
-      _scaffoldMessenger = ScaffoldMessenger.of(context);
-    } catch (e) {
-      print('Error getting ScaffoldMessenger reference: $e');
+    // CRÍTICO: Guardar referencia segura al ScaffoldMessenger aquí
+    if (!_isDisposed && mounted) {
+      try {
+        _scaffoldMessenger = ScaffoldMessenger.of(context);
+      } catch (e) {
+        print('Error obteniendo ScaffoldMessenger: $e');
+      }
     }
   }
 
   @override
   void dispose() {
+    print('PhotoPicker dispose() llamado');
     _isDisposed = true;
     _scaffoldMessenger = null;
     super.dispose();
   }
 
-  // Método seguro para mostrar SnackBar
+  // Método seguro para mostrar SnackBar usando la referencia guardada
   void _showSafeSnackBar(String message) {
-    if (_isDisposed || !mounted) return;
-
     final messenger = _scaffoldMessenger;
-    if (messenger != null) {
+    if (messenger != null && !_isDisposed) {
       try {
         messenger.showSnackBar(
           SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
         );
       } catch (e) {
-        print('Error showing SnackBar: $e');
+        print('Error mostrando SnackBar en PhotoPicker: $e');
       }
     }
   }
@@ -80,7 +82,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
     try {
       widget.onFilesSelected!(_selectedFiles);
     } catch (e) {
-      print('Error notifying parent: $e');
+      print('Error notificando al padre: $e');
     }
   }
 
@@ -91,12 +93,12 @@ class _PhotoPickerState extends State<PhotoPicker> {
     try {
       widget.onPhotosChanged(newUrls);
     } catch (e) {
-      print('Error notifying URL change: $e');
+      print('Error notificando cambio de URL: $e');
     }
   }
 
   void _pickImages(BuildContext context) {
-    if (_isDisposed) return;
+    if (_isDisposed || !mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -128,7 +130,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
   }
 
   Future<void> _getImageFromCamera() async {
-    if (_isDisposed) return;
+    if (_isDisposed || !mounted) return;
 
     try {
       final XFile? photo = await _picker.pickImage(
@@ -152,7 +154,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
         });
 
         // Notificar al padre de forma diferida
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.microtask(() {
           _safeNotifyParent();
         });
       }
@@ -165,7 +167,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
   }
 
   Future<void> _getImagesFromGallery() async {
-    if (_isDisposed) return;
+    if (_isDisposed || !mounted) return;
 
     try {
       final List<XFile>? images = await _picker.pickMultiImage(
@@ -194,7 +196,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
             });
 
             // Notificar al padre de forma diferida
-            WidgetsBinding.instance.addPostFrameCallback((_) {
+            Future.microtask(() {
               _safeNotifyParent();
             });
           }
@@ -208,7 +210,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
         });
 
         // Notificar al padre de forma diferida
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.microtask(() {
           _safeNotifyParent();
         });
       }
@@ -228,7 +230,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
     });
 
     // Notificar al padre de forma diferida
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future.microtask(() {
       _safeNotifyParent();
     });
   }
@@ -240,7 +242,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
     newUrls.removeAt(index);
 
     // Notificar cambio de forma diferida
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future.microtask(() {
       _safeNotifyUrlChange(newUrls);
     });
   }
