@@ -1,3 +1,4 @@
+// lib/presentation/screens/service_request/components/service_detail_actions.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/models/service_request_model.dart';
@@ -34,10 +35,7 @@ class ServiceDetailActions extends StatelessWidget {
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 16),
-
-            // Botones de acción
             Row(
               children: [
                 // Botón Editar
@@ -81,10 +79,7 @@ class ServiceDetailActions extends StatelessWidget {
                 ],
               ],
             ),
-
             const SizedBox(height: 8),
-
-            // Texto informativo
             Text(
               _getActionInfoText(),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -109,22 +104,36 @@ class ServiceDetailActions extends StatelessWidget {
     return '';
   }
 
-  void _editRequest(BuildContext context) {
-    Navigator.push(
+  void _editRequest(BuildContext context) async {
+    // Navegar a la pantalla de edición y esperar el resultado
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => EditServiceRequestScreen(request: request),
       ),
-    ).then((edited) {
-      // Si se editó la solicitud, actualizar la vista
-      if (edited == true) {
-        final requestViewModel = Provider.of<ServiceRequestViewModel>(
-          context,
-          listen: false,
+    );
+
+    // Si se editó exitosamente (result == true)
+    if (result == true) {
+      // Mostrar mensaje de éxito AQUÍ en lugar del EditScreen
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Solicitud actualizada correctamente'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
         );
-        requestViewModel.getServiceRequestById(request.id);
       }
-    });
+
+      // Actualizar la vista actual
+      final requestViewModel = Provider.of<ServiceRequestViewModel>(
+        context,
+        listen: false,
+      );
+      requestViewModel.getServiceRequestById(request.id);
+    }
   }
 
   void _confirmCancel(BuildContext context) {

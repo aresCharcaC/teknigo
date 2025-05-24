@@ -1,3 +1,4 @@
+// lib/presentation/screens/service_request/components_edit/edit_form_data.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -32,16 +33,19 @@ class EditFormData {
     scheduledDate = request.scheduledDate;
     addressController.text = request.address ?? '';
     selectedLocation = request.location;
-    photoUrls = List.from(request.photos ?? []);
+
+    // Hacer una copia profunda de las fotos para evitar referencias compartidas
+    photoUrls =
+        request.photos != null ? List<String>.from(request.photos!) : [];
 
     if (request.scheduledDate != null) {
       scheduledTime = TimeOfDay.fromDateTime(request.scheduledDate!);
     }
   }
 
-  // Métodos para actualizar estado
+  // Métodos para actualizar estado - Ahora más seguros
   void updateCategories(List<String> categories) {
-    selectedCategories = categories;
+    selectedCategories = List<String>.from(categories); // Copia profunda
   }
 
   void updateUrgency(bool urgent) {
@@ -57,7 +61,10 @@ class EditFormData {
   }
 
   void updateAddress(String address) {
-    addressController.text = address;
+    // Solo actualizar si es diferente
+    if (addressController.text != address) {
+      addressController.text = address;
+    }
   }
 
   void updateSelectedLocation(LatLng? location) {
@@ -65,11 +72,13 @@ class EditFormData {
   }
 
   void updatePhotoUrls(List<String> urls) {
-    photoUrls = urls;
+    // Hacer copia profunda para evitar referencias compartidas
+    photoUrls = List<String>.from(urls);
   }
 
   void updatePhotoFiles(List<File> files) {
-    photoFiles = files;
+    // Hacer copia profunda para evitar referencias compartidas
+    photoFiles = List<File>.from(files);
   }
 
   void setSubmitting(bool submitting) {
@@ -94,13 +103,16 @@ class EditFormData {
     return original.copyWith(
       title: titleController.text.trim(),
       description: descriptionController.text.trim(),
-      categoryIds: selectedCategories,
+      categoryIds: List<String>.from(selectedCategories), // Copia profunda
       isUrgent: isUrgent,
       inClientLocation: inClientLocation,
       address: inClientLocation ? addressController.text.trim() : null,
       location: inClientLocation ? selectedLocation : null,
       scheduledDate: scheduledDate,
-      photos: photoUrls.isEmpty ? null : photoUrls,
+      photos:
+          photoUrls.isEmpty
+              ? null
+              : List<String>.from(photoUrls), // Copia profunda
     );
   }
 

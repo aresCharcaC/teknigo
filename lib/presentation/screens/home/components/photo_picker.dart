@@ -23,18 +23,81 @@ class PhotoPicker extends StatefulWidget {
 class _PhotoPickerState extends State<PhotoPicker> {
   final List<File> _selectedFiles = [];
   final ImagePicker _picker = ImagePicker();
+  bool _isDisposed = false;
+
+  // Referencia segura al ScaffoldMessenger
+  ScaffoldMessengerState? _scaffoldMessenger;
 
   @override
   void initState() {
     super.initState();
-    // Check if there are any photos passed from outside
-    if (widget.onFilesSelected != null) {
-      // Notify parent about initial files if any
+
+    // Notificación inicial diferida
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _safeNotifyParent();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Guardar referencia segura al ScaffoldMessenger
+    try {
+      _scaffoldMessenger = ScaffoldMessenger.of(context);
+    } catch (e) {
+      print('Error getting ScaffoldMessenger reference: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _scaffoldMessenger = null;
+    super.dispose();
+  }
+
+  // Método seguro para mostrar SnackBar
+  void _showSafeSnackBar(String message) {
+    if (_isDisposed || !mounted) return;
+
+    final messenger = _scaffoldMessenger;
+    if (messenger != null) {
+      try {
+        messenger.showSnackBar(
+          SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        );
+      } catch (e) {
+        print('Error showing SnackBar: $e');
+      }
+    }
+  }
+
+  // Método seguro para notificar al padre
+  void _safeNotifyParent() {
+    if (_isDisposed || widget.onFilesSelected == null) return;
+
+    try {
       widget.onFilesSelected!(_selectedFiles);
+    } catch (e) {
+      print('Error notifying parent: $e');
+    }
+  }
+
+  // Método seguro para notificar cambios en URLs
+  void _safeNotifyUrlChange(List<String> newUrls) {
+    if (_isDisposed) return;
+
+    try {
+      widget.onPhotosChanged(newUrls);
+    } catch (e) {
+      print('Error notifying URL change: $e');
     }
   }
 
   void _pickImages(BuildContext context) {
+    if (_isDisposed) return;
+
     showModalBottomSheet(
       context: context,
       builder:
@@ -65,6 +128,8 @@ class _PhotoPickerState extends State<PhotoPicker> {
   }
 
   Future<void> _getImageFromCamera() async {
+    if (_isDisposed) return;
+
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
@@ -72,17 +137,12 @@ class _PhotoPickerState extends State<PhotoPicker> {
         maxWidth: 1024,
       );
 
-      if (photo != null) {
-        // Validate maximum number of images
+      if (photo != null && !_isDisposed && mounted) {
+        // Validar máximo número de imágenes
         if (_selectedFiles.length + widget.photoUrls.length >=
             AppConstants.maxImagesPerService) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Máximo ${AppConstants.maxImagesPerService} imágenes permitidas',
-              ),
-              behavior: SnackBarBehavior.floating,
-            ),
+          _showSafeSnackBar(
+            'Máximo ${AppConstants.maxImagesPerService} imágenes permitidas',
           );
           return;
         }
@@ -91,43 +151,37 @@ class _PhotoPickerState extends State<PhotoPicker> {
           _selectedFiles.add(File(photo.path));
         });
 
-        // Notify parent about new files
-        if (widget.onFilesSelected != null) {
-          widget.onFilesSelected!(_selectedFiles);
-        }
+        // Notificar al padre de forma diferida
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _safeNotifyParent();
+        });
       }
     } catch (e) {
       print('Error al tomar foto: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al tomar foto: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (!_isDisposed) {
+        _showSafeSnackBar('Error al tomar foto: $e');
+      }
     }
   }
 
   Future<void> _getImagesFromGallery() async {
+    if (_isDisposed) return;
+
     try {
       final List<XFile>? images = await _picker.pickMultiImage(
         imageQuality: 80,
         maxWidth: 1024,
       );
 
-      if (images != null && images.isNotEmpty) {
-        // Validate maximum number of images
+      if (images != null && images.isNotEmpty && !_isDisposed && mounted) {
+        // Validar máximo número de imágenes
         if (_selectedFiles.length + widget.photoUrls.length + images.length >
             AppConstants.maxImagesPerService) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Máximo ${AppConstants.maxImagesPerService} imágenes permitidas',
-              ),
-              behavior: SnackBarBehavior.floating,
-            ),
+          _showSafeSnackBar(
+            'Máximo ${AppConstants.maxImagesPerService} imágenes permitidas',
           );
 
-          // Add only the images that fit within the limit
+          // Añadir solo las imágenes que caben
           final remaining =
               AppConstants.maxImagesPerService -
               (_selectedFiles.length + widget.photoUrls.length);
@@ -139,10 +193,10 @@ class _PhotoPickerState extends State<PhotoPicker> {
               }
             });
 
-            // Notify parent about new files
-            if (widget.onFilesSelected != null) {
-              widget.onFilesSelected!(_selectedFiles);
-            }
+            // Notificar al padre de forma diferida
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _safeNotifyParent();
+            });
           }
           return;
         }
@@ -153,41 +207,51 @@ class _PhotoPickerState extends State<PhotoPicker> {
           }
         });
 
-        // Notify parent about new files
-        if (widget.onFilesSelected != null) {
-          widget.onFilesSelected!(_selectedFiles);
-        }
+        // Notificar al padre de forma diferida
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _safeNotifyParent();
+        });
       }
     } catch (e) {
       print('Error al seleccionar imágenes: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al seleccionar imágenes: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (!_isDisposed) {
+        _showSafeSnackBar('Error al seleccionar imágenes: $e');
+      }
     }
   }
 
   void _removeSelectedFile(int index) {
+    if (_isDisposed || !mounted) return;
+
     setState(() {
       _selectedFiles.removeAt(index);
     });
 
-    // Notify parent about updated files
-    if (widget.onFilesSelected != null) {
-      widget.onFilesSelected!(_selectedFiles);
-    }
+    // Notificar al padre de forma diferida
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _safeNotifyParent();
+    });
   }
 
   void _removePhotoUrl(int index) {
+    if (_isDisposed) return;
+
     final List<String> newUrls = List.from(widget.photoUrls);
     newUrls.removeAt(index);
-    widget.onPhotosChanged(newUrls);
+
+    // Notificar cambio de forma diferida
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _safeNotifyUrlChange(newUrls);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Si el widget está disposed, mostrar versión mínima
+    if (_isDisposed) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -199,14 +263,14 @@ class _PhotoPickerState extends State<PhotoPicker> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             TextButton.icon(
-              onPressed: () => _pickImages(context),
+              onPressed: _isDisposed ? null : () => _pickImages(context),
               icon: const Icon(Icons.add_photo_alternate),
               label: const Text('Agregar'),
             ),
           ],
         ),
 
-        // Show selected and existing images
+        // Mostrar imágenes seleccionadas y existentes
         if (_selectedFiles.isNotEmpty || widget.photoUrls.isNotEmpty) ...[
           const SizedBox(height: 8),
           SizedBox(
@@ -214,7 +278,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                // Show existing photos
+                // Mostrar fotos existentes
                 ...widget.photoUrls.asMap().entries.map((entry) {
                   final index = entry.key;
                   final url = entry.value;
@@ -245,7 +309,10 @@ class _PhotoPickerState extends State<PhotoPicker> {
                           right: 0,
                           top: 0,
                           child: GestureDetector(
-                            onTap: () => _removePhotoUrl(index),
+                            onTap:
+                                _isDisposed
+                                    ? null
+                                    : () => _removePhotoUrl(index),
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
@@ -265,7 +332,7 @@ class _PhotoPickerState extends State<PhotoPicker> {
                   );
                 }),
 
-                // Show locally selected files
+                // Mostrar archivos seleccionados localmente
                 ..._selectedFiles.asMap().entries.map((entry) {
                   final index = entry.key;
                   final file = entry.value;
@@ -296,7 +363,10 @@ class _PhotoPickerState extends State<PhotoPicker> {
                           right: 0,
                           top: 0,
                           child: GestureDetector(
-                            onTap: () => _removeSelectedFile(index),
+                            onTap:
+                                _isDisposed
+                                    ? null
+                                    : () => _removeSelectedFile(index),
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(

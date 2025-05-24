@@ -1,3 +1,4 @@
+// lib/presentation/screens/service_request/edit_service_request_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/service_request_model.dart';
@@ -26,65 +27,118 @@ class EditServiceRequestScreen extends StatefulWidget {
 class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
   final _formKey = GlobalKey<FormState>();
   late EditFormData _formData;
+
   bool _isInitialized = false;
+  bool _categoriesLoaded = false;
+  bool _isDisposed = false;
+
+  // Referencias guardadas para uso seguro
+  ServiceRequestViewModel? _requestViewModel;
+  CategoryViewModel? _categoryViewModel;
 
   @override
   void initState() {
     super.initState();
-    // SOLUCION: Inicializar datos sin usar setState
     _formData = EditFormData.fromRequest(widget.request);
+    _isInitialized = true;
 
-    // Cargar categorías en el siguiente frame
+    // Cargar categorías después del primer build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadCategoriesIfNeeded();
-      // Marcar como inicializado DESPUES del primer build
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
+      if (!_isDisposed && mounted) {
+        _loadCategoriesIfNeeded();
       }
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Guardar referencias de ViewModels de forma segura
+    if (!_isDisposed && mounted) {
+      try {
+        _requestViewModel = Provider.of<ServiceRequestViewModel>(
+          context,
+          listen: false,
+        );
+        _categoryViewModel = Provider.of<CategoryViewModel>(
+          context,
+          listen: false,
+        );
+      } catch (e) {
+        print('Error obteniendo ViewModels: $e');
+      }
+    }
+  }
+
   void _loadCategoriesIfNeeded() {
-    final categoryViewModel = Provider.of<CategoryViewModel>(
-      context,
-      listen: false,
-    );
-    if (categoryViewModel.categories.isEmpty) {
-      categoryViewModel.loadCategories();
+    if (_isDisposed || !mounted) return;
+
+    final categoryViewModel = _categoryViewModel;
+    if (categoryViewModel == null) return;
+
+    if (categoryViewModel.categories.isEmpty && !categoryViewModel.isLoading) {
+      categoryViewModel
+          .loadCategories()
+          .then((_) {
+            if (!_isDisposed && mounted) {
+              setState(() {
+                _categoriesLoaded = true;
+              });
+            }
+          })
+          .catchError((e) {
+            print('Error cargando categorías: $e');
+            if (!_isDisposed && mounted) {
+              setState(() {
+                _categoriesLoaded = true;
+              });
+            }
+          });
+    } else {
+      if (!_isDisposed && mounted) {
+        setState(() {
+          _categoriesLoaded = true;
+        });
+      }
     }
   }
 
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    // Verificación inicial
+    if (_isDisposed || !mounted) return;
 
-    // Validaciones usando formData
+    if (!_formKey.currentState!.validate()) return;
+
     final validationError = _formData.validate();
     if (validationError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(validationError),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (!_isDisposed && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(validationError),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       return;
     }
 
-    _formData.setSubmitting(true);
-    setState(() {}); // Solo actualizamos UI
+    if (_formData.isSubmitting) return;
+
+    // Marcar como enviando
+    if (!_isDisposed && mounted) {
+      setState(() {
+        _formData.setSubmitting(true);
+      });
+    }
 
     try {
-      // Crear objeto actualizado usando formData
       final updatedRequest = _formData.toServiceRequest(widget.request);
+      final requestViewModel = _requestViewModel;
 
-      // Usar el ViewModel para actualizar
-      final requestViewModel = Provider.of<ServiceRequestViewModel>(
-        context,
-        listen: false,
-      );
+      if (requestViewModel == null) {
+        throw Exception('ViewModel no disponible');
+      }
 
       final result = await requestViewModel.updateServiceRequest(
         widget.request.id,
@@ -92,53 +146,73 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
         _formData.photoFiles.isEmpty ? null : _formData.photoFiles,
       );
 
-      if (mounted) {
-        if (result.isSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Solicitud actualizada correctamente'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+      // Verificar que el widget siga activo después de la operación asíncrona
+      if (_isDisposed || !mounted) return;
+
+      if (result.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Solicitud actualizada correctamente'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        // Delay pequeño para que se muestre el mensaje
+        await Future.delayed(const Duration(milliseconds: 150));
+
+        if (!_isDisposed && mounted) {
           Navigator.pop(context, true);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${result.error}'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
         }
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al actualizar la solicitud: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Text('Error: ${result.error}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error en _submitForm: $e');
+      if (!_isDisposed && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar: $e'),
+            backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } finally {
-      if (mounted) {
-        _formData.setSubmitting(false);
-        setState(() {});
+      // Marcar como no enviando
+      if (!_isDisposed && mounted) {
+        setState(() {
+          _formData.setSubmitting(false);
+        });
       }
     }
   }
 
-  void _updateFormData(VoidCallback update) {
-    update();
-    setState(() {});
+  void _safeUpdateState(VoidCallback update) {
+    if (!_isDisposed && mounted) {
+      update();
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _formData.dispose();
+    _requestViewModel = null;
+    _categoryViewModel = null;
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Mostrar carga inicial si no está inicializado
-    if (!_isInitialized) {
+    if (!_isInitialized || !_categoriesLoaded) {
       return Scaffold(
         appBar: AppBar(title: const Text('Editar Solicitud'), elevation: 0),
         body: const Center(
@@ -181,46 +255,36 @@ class _EditServiceRequestScreenState extends State<EditServiceRequestScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Banner informativo
               const EditInfoBanner(),
-
               const SizedBox(height: 24),
 
-              // Campos básicos (título y descripción)
-              EditBasicFields(formData: _formData, onUpdate: _updateFormData),
-
+              EditBasicFields(formData: _formData, onUpdate: _safeUpdateState),
               const SizedBox(height: 16),
 
-              // Sección de categorías
               EditCategoriesSection(
                 formData: _formData,
-                onUpdate: _updateFormData,
+                onUpdate: _safeUpdateState,
               ),
-
               const SizedBox(height: 16),
 
-              // Sección de urgencia
               EditUrgencySection(
                 formData: _formData,
-                onUpdate: _updateFormData,
+                onUpdate: _safeUpdateState,
               ),
-
               const SizedBox(height: 16),
 
-              // Sección de ubicación
               EditLocationSection(
                 formData: _formData,
-                onUpdate: _updateFormData,
+                onUpdate: _safeUpdateState,
               ),
-
               const SizedBox(height: 16),
 
-              // Sección de fotos
-              EditPhotosSection(formData: _formData, onUpdate: _updateFormData),
-
+              EditPhotosSection(
+                formData: _formData,
+                onUpdate: _safeUpdateState,
+              ),
               const SizedBox(height: 32),
 
-              // Botón de envío
               EditSubmitButton(formData: _formData, onSubmit: _submitForm),
             ],
           ),
